@@ -34,8 +34,8 @@ sudo mv echotherm /usr/local/bin/
 The above will send socket commands to the daemon process, and it is expected (todo) that the daemon will then interact with the camera api to make these settings apply
 
 ## TODO
-- Add --help option to echotherm which explains what the pallet and shuttermode options to
-- Implement the camera startup, support software, etc. into echothermd.c
-- Test to make sure the v4l2 loopback is resiliant and starts up with the daemon is started
-- Implement the palette and shuttermode commands within echothermd.c
+- Add --help option to echotherm which explains what the pallet and shuttermode options do and what the modes mean
+- Implement the camera startup, v4l2 loopback, support software, etc. into echothermd.c
+- Test to make sure the v4l2 loopback is resiliant and starts up when the daemon is started and usb device is plugged/unplugged
+- Implement the palette and shuttermode commands within echothermd.c using the seek api
 - Add any other commands which may be relevant
