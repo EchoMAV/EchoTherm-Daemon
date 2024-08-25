@@ -4,7 +4,7 @@ The idea here is that an EchoTherm Daemon is started which manages the camera, l
 
 The user interacts with the daemon using the "echotherm" application, which communicates with the Daemon using a simple socket.  
 
-### Damon - echothermd.c
+### Daemon - echothermd.c
 This is the daemon implementation to build and run  
 ```
 gcc -o echothermd echothermd.c
@@ -25,5 +25,17 @@ This is the application the user can use to interact with the daemon. To build a
 gcc -o echotherm echotherm.c
 ./echotherm --palette 1 --shuttermode 3
 ```
+If you'd like to be able to run this from anywhere
+```
+sudo mv echotherm /usr/local/bin/
+# now you can run it from any directory as echotherm --palette <number> --shuttermode <number>
+```
+
 The above will send socket commands to the daemon process, and it is expected (todo) that the daemon will then interact with the camera api to make these settings apply
 
+## TODO
+- Add --help option to echotherm which explains what the pallet and shuttermode options to
+- Implement the camera startup, support software, etc. into echothermd.c
+- Test to make sure the v4l2 loopback is resiliant and starts up with the daemon is started
+- Implement the palette and shuttermode commands within echothermd.c
+- Add any other commands which may be relevant
