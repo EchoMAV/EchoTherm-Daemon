@@ -23,6 +23,7 @@ int main(int argc, char *argv[]) {
     static struct option long_options[] = {
         {"palette", required_argument, 0, 'p'},
         {"shuttermode", required_argument, 0, 's'},
+        {"help", 0, 0, 'h'},
         {0, 0, 0, 0}
     };
 
@@ -30,20 +31,24 @@ int main(int argc, char *argv[]) {
     //might not be a bad idea to verify that port is open for listening too
     status = system("pgrep echothermd > /dev/null 2>&1");
     if (status != 0) {
-        printf("Error, the echotherm daemon is not running \n");
+        printf("Error, the EchoTherm daemon is not running, please start it first with ./echothermd.\n");
         exit(EXIT_FAILURE);
     }
 
     //now parse the command line arguments --palette X and --shuttermode X    
-    while ((opt = getopt_long(argc, argv, "p:s:", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "p:s:h:", long_options, NULL)) != -1) {
         switch (opt) {
             case 'p':
                 palette = atoi(optarg);
-                sprintf(paletteCommand, "PALLET %d", palette);
+                sprintf(paletteCommand, "PALETTE %d", palette);
                 break;
             case 's':
                 shuttermode = atoi(optarg);
                 sprintf(shutterCommand, "SHUTTERMODE %d", shuttermode);
+                break;
+            case 'h':                               
+                printf("\nUsage: echotherm --palette <number> or --shuttermode <number>\n\n\t--palette\tColor palette: Options 1 (Black Hot), 2 (White Hot)...TBD\n\t--shuttermode\tShutter Mode: 1 (auto), 2 (every 10s), 3 (every 20s), ...TBD\n\n");
+                exit(EXIT_SUCCESS);
                 break;
             default:
                 fprintf(stderr, "Usage: %s --palette <number> or --shuttermode <number> is required\n", argv[0]);
