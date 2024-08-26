@@ -16,8 +16,9 @@ sudo tail -f /var/log/syslog
 ```
 To kill the daemon
 ```
-sudo kill $(pgrep echothermd)
+./echothermd --kill
 ```
+The daemon uses a lock file placed in `/tmp/echothermd.lock` to keep track of the daemon running or not  
 
 ### User application - echotherm.c
 This is the application the user can use to interact with the daemon. To build and run
@@ -34,7 +35,7 @@ sudo mv echotherm /usr/local/bin/
 The above will send socket commands to the daemon process, and it is expected (todo) that the daemon will then interact with the camera api to make these settings apply
 
 ## TODO
-- Add --help option to echotherm which explains what the pallet and shuttermode options do and what the modes mean
+- Expand --help option of echotherm to explain what the pallet and shuttermode options do and what the modes mean
 - Implement the camera startup, v4l2 loopback, support software, etc. into echothermd.c
 - Test to make sure the v4l2 loopback is resiliant and starts up when the daemon is started and usb device is plugged/unplugged
 - Implement the palette and shuttermode commands within echothermd.c using the seek api
