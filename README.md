@@ -23,7 +23,7 @@ The daemon uses a lock file placed in `/tmp/echothermd.lock` to keep track of th
 ### User application - echotherm.c
 This is the application the user can use to interact with the daemon. To build and run
 ```
-gcc -o echotherm echotherm.c
+g++ -o echotherm echotherm.c
 ./echotherm --palette 1 --shuttermode 3
 ```
 If you'd like to be able to run this from anywhere
