@@ -7,7 +7,7 @@ The user interacts with the daemon using the "echotherm" application, which comm
 ### Daemon - echothermd.c
 This is the daemon implementation to build and run  
 ```
-gcc -o echothermd echothermd.c
+g++ -o echothermd echothermd.c
 ./echothermd
 ```
 this should start a background process. It will write status to the system log which can be viewed using 
