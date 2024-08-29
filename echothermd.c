@@ -105,7 +105,7 @@ void parse_command(const char* command) {
                 syslog(LOG_NOTICE, "SHUTTERMODE command received, but no number was provided.\n");
             }
         } else {
-            std::cerr << "Unknown command: " << token << std::endl;
+            syslog(LOG_NOTICE, "Unknown command: %s\n", token);
         }
     }
 }
