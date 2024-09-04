@@ -21,6 +21,7 @@ To kill the daemon
 The daemon uses a lock file placed in `/tmp/echothermd.lock` to keep track of the daemon running or not  
 
 #### echothermd Allowed options
+```
   --help                    Produce this message
   --kill                    Kill the existing instance
   --loopbackDeviceName arg  Choose the initial loopback device name
@@ -78,6 +79,7 @@ The daemon uses a lock file placed in `/tmp/echothermd.lock` to keep track of th
   --gradientFilterMode arg  Choose the initial state of the gradient filter
                             zero     = disabled
                             non-zero = enabled
+```
 
 
 ### User application - echotherm.c
@@ -95,6 +97,7 @@ sudo mv echotherm /usr/local/bin/
 The above will send socket commands to the daemon process, and it is expected (todo) that the daemon will then interact with the camera api to make these settings apply
 
 #### echotherm Allowed options
+```
   --help                    Produce this message
   --shutter                 Trigger the shutter
   --colorPalette arg        Choose the color palette
@@ -131,6 +134,7 @@ The above will send socket commands to the daemon process, and it is expected (t
   --gradientFilterMode arg  Choose the state of the gradient filter
                             zero     = disabled
                             non-zero = enabled
+```
 
 
 ## TO DO
