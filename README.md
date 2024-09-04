@@ -4,10 +4,21 @@ The idea here is that an EchoTherm Daemon is started which manages the camera, l
 
 The user interacts with the daemon using the "echotherm" application, which communicates with the Daemon using a simple socket.  
 
-### Daemon - echothermd.c
-This is the daemon implementation to build and run  
+### Installation
+Run
 ```
-g++ -o echothermd echothermd.c
+sudo ./install.sh
+```
+
+### Uninstallation
+Run
+```
+sudo ./uninstall.sh
+```
+
+### Daemon - echothermd.c
+This is the daemon implementation to run
+```
 ./echothermd
 ```
 this should start a background process. It will write status to the system log which can be viewed using 
