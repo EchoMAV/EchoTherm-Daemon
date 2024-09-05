@@ -17,13 +17,13 @@
 namespace
 {
     constexpr static inline auto const n_defaultlLoopbackDeviceName = "/dev/video0";
-    constexpr static inline auto const n_defaultColorPalette = 0;        // SEEKCAMERA_COLOR_PALETTE_WHITE_HOT
-    constexpr static inline auto const n_defaultShutterMode = 0;         // SEEKCAMERA_SHUTTER_MODE_AUTO
-    constexpr static inline auto const n_defaultFrameFormat = 0x400;     // SEEKCAMERA_FRAME_FORMAT_COLOR_YUY2
+    constexpr static inline auto const n_defaultColorPalette = 0;        // COLOR_PALETTE_WHITE_HOT
+    constexpr static inline auto const n_defaultShutterMode = 0;         // SHUTTER_MODE_AUTO
+    constexpr static inline auto const n_defaultFrameFormat = 0x400;     // FRAME_FORMAT_COLOR_YUY2
     constexpr static inline auto const n_defaultSharpenFilterMode = 0;   // DISABLED
     constexpr static inline auto const n_defaultGradientFilterMode = 0;  // DISABLED
     constexpr static inline auto const n_defaultFlatSceneFilterMode = 0; // DISABLED
-    constexpr static inline auto const n_defaultPipelineMode = 2;        // SEEKCAMERA_IMAGE_SEEKVISION
+    constexpr static inline auto const n_defaultPipelineMode = 2;        // PIPELINE_PROCESSED
 
     constexpr static inline auto const n_bufferSize = 1024;
     constexpr static inline auto const np_lockFile = "/tmp/echothermd.lock";
@@ -519,7 +519,6 @@ namespace
         syslog(LOG_NOTICE, "gradientFilterMode = %d", gradientFilterMode);
         syslog(LOG_NOTICE, "flatSceneFilterMode = %d", flatSceneFilterMode);
 
-        // TODO: add seek camera init code here
         np_camera = std::make_unique<EchoThermCamera>();
         np_camera->setLoopbackDeviceName(loopbackDeviceName);
         np_camera->setColorPalette(colorPalette);
@@ -556,20 +555,20 @@ int main(int argc, char *argv[])
                            "Choose the initial loopback device name");
         desc.add_options()("colorPalette", boost::program_options::value<std::string>(),
                            "Choose the initial color palette\n"
-                           "SEEKCAMERA_COLOR_PALETTE_WHITE_HOT =  0\n"
-                           "SEEKCAMERA_COLOR_PALETTE_BLACK_HOT =  1\n"
-                           "SEEKCAMERA_COLOR_PALETTE_SPECTRA   =  2\n"
-                           "SEEKCAMERA_COLOR_PALETTE_PRISM     =  3\n"
-                           "SEEKCAMERA_COLOR_PALETTE_TYRIAN    =  4\n"
-                           "SEEKCAMERA_COLOR_PALETTE_IRON      =  5\n"
-                           "SEEKCAMERA_COLOR_PALETTE_AMBER     =  6\n"
-                           "SEEKCAMERA_COLOR_PALETTE_HI        =  7\n"
-                           "SEEKCAMERA_COLOR_PALETTE_GREEN     =  8\n"
-                           "SEEKCAMERA_COLOR_PALETTE_USER_0    =  9\n"
-                           "SEEKCAMERA_COLOR_PALETTE_USER_1    = 10\n"
-                           "SEEKCAMERA_COLOR_PALETTE_USER_2    = 11\n"
-                           "SEEKCAMERA_COLOR_PALETTE_USER_3    = 12\n"
-                           "SEEKCAMERA_COLOR_PALETTE_USER_4    = 13");
+                           "COLOR_PALETTE_WHITE_HOT =  0\n"
+                           "COLOR_PALETTE_BLACK_HOT =  1\n"
+                           "COLOR_PALETTE_SPECTRA   =  2\n"
+                           "COLOR_PALETTE_PRISM     =  3\n"
+                           "COLOR_PALETTE_TYRIAN    =  4\n"
+                           "COLOR_PALETTE_IRON      =  5\n"
+                           "COLOR_PALETTE_AMBER     =  6\n"
+                           "COLOR_PALETTE_HI        =  7\n"
+                           "COLOR_PALETTE_GREEN     =  8\n"
+                           "COLOR_PALETTE_USER_0    =  9\n"
+                           "COLOR_PALETTE_USER_1    = 10\n"
+                           "COLOR_PALETTE_USER_2    = 11\n"
+                           "COLOR_PALETTE_USER_3    = 12\n"
+                           "COLOR_PALETTE_USER_4    = 13");
         desc.add_options()("shutterMode", boost::program_options::value<std::string>(),
                            "Choose the initial shutter mode\n"
                            "negative = manual\n"
@@ -577,21 +576,21 @@ int main(int argc, char *argv[])
                            "positive = number of seconds between shutter events");
         desc.add_options()("frameFormat", boost::program_options::value<std::string>(),
                            "Choose the initial frame format\n"
-                           "SEEKCAMERA_FRAME_FORMAT_CORRECTED               = 0x04\n"
-                           "SEEKCAMERA_FRAME_FORMAT_PRE_AGC                 = 0x08\n"
-                           "SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT      = 0x10\n"
-                           "SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6 = 0x20\n"
-                           "SEEKCAMERA_FRAME_FORMAT_GRAYSCALE               = 0x40\n"
-                           "SEEKCAMERA_FRAME_FORMAT_COLOR_ARGB8888          = 0x80\n"
-                           "SEEKCAMERA_FRAME_FORMAT_COLOR_RGB565            = 0x100\n"
-                           "SEEKCAMERA_FRAME_FORMAT_COLOR_AYUV              = 0x200\n"
-                           "SEEKCAMERA_FRAME_FORMAT_COLOR_YUY2              = 0x400\n");
+                           "FRAME_FORMAT_CORRECTED               = 0x04\n"
+                           "FRAME_FORMAT_PRE_AGC                 = 0x08\n"
+                           "FRAME_FORMAT_THERMOGRAPHY_FLOAT      = 0x10\n"
+                           "FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6 = 0x20\n"
+                           "FRAME_FORMAT_GRAYSCALE               = 0x40\n"
+                           "FRAME_FORMAT_COLOR_ARGB8888          = 0x80\n"
+                           "FRAME_FORMAT_COLOR_RGB565            = 0x100\n"
+                           "FRAME_FORMAT_COLOR_AYUV              = 0x200\n"
+                           "FRAME_FORMAT_COLOR_YUY2              = 0x400\n");
         desc.add_options()("pipelineMode", boost::program_options::value<std::string>(),
                            "Choose the initial pipeline mode\n"
-                           "SEEKCAMERA_IMAGE_LITE       = 0\n"
-                           "SEEKCAMERA_IMAGE_LEGACY     = 1\n"
-                           "SEEKCAMERA_IMAGE_SEEKVISION = 2\n"
-                           "Note that in SEEKCAMERA_IMAGE_SEEKVISION, sharpen, flat scene, and gradient filters are disabled");
+                           "PIPELINE_LITE       = 0\n"
+                           "PIPELINE_LEGACY     = 1\n"
+                           "PIPELINE_PROCESSED  = 2\n"
+                           "Note that in PIPELINE_PROCESSED, sharpen, flat scene, and gradient filters are disabled");
         desc.add_options()("sharpenFilterMode", boost::program_options::value<std::string>(),
                            "Choose the initial state of the sharpen filter\n"
                            "zero     = disabled\n"

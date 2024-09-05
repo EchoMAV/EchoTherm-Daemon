@@ -44,14 +44,6 @@ void EchoThermCamera::setLoopbackDeviceName(std::string loopbackDeviceName)
     if (loopbackDeviceName != m_loopbackDeviceName)
     {
         m_loopbackDeviceName = std::move(loopbackDeviceName);
-        //if (mp_camera)
-        //{
-        //    syslog(LOG_NOTICE, "Restarting camera session to set loopback device name to %s.", m_loopbackDeviceName.c_str());
-        //    auto p_camera = mp_camera;
-        //    _closeSession();
-        //    mp_camera = p_camera;
-        //    _openSession(true);
-        //}
     }
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::setLoopbackDeviceName(%s)", loopbackDeviceName.c_str());
 }
@@ -62,31 +54,24 @@ void EchoThermCamera::setFrameFormat(int frameFormat)
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::setFrameFormat(%d)", frameFormat);
     if (frameFormat != m_frameFormat)
     {
-        m_frameFormat = frameFormat;
-        #if 0
         switch (frameFormat)
         {
-        case (int)SEEKCAMERA_FRAME_FORMAT_CORRECTED:
-        case (int)SEEKCAMERA_FRAME_FORMAT_PRE_AGC:
-        case (int)SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT:
-        case (int)SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6:
-        case (int)SEEKCAMERA_FRAME_FORMAT_GRAYSCALE:
-        case (int)SEEKCAMERA_FRAME_FORMAT_COLOR_ARGB8888:
-        case (int)SEEKCAMERA_FRAME_FORMAT_COLOR_RGB565:
-        case (int)SEEKCAMERA_FRAME_FORMAT_COLOR_AYUV:
-        case (int)SEEKCAMERA_FRAME_FORMAT_COLOR_YUY2:
+        case SEEKCAMERA_FRAME_FORMAT_COLOR_YUY2:
+        case SEEKCAMERA_FRAME_FORMAT_COLOR_AYUV:
+        case SEEKCAMERA_FRAME_FORMAT_COLOR_RGB565:
+        case SEEKCAMERA_FRAME_FORMAT_COLOR_ARGB8888:
+        case SEEKCAMERA_FRAME_FORMAT_GRAYSCALE:
             m_frameFormat = frameFormat;
-            //if (mp_camera)
-            //{
-            //    syslog(LOG_NOTICE, "Restarting capture session to change frame format to %d", m_frameFormat);
-            //    start();
-            //}
             break;
+        // TODO support these as well as bit-wise ORed frame formats
+        case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6:
+        case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT:
+        case SEEKCAMERA_FRAME_FORMAT_PRE_AGC:
+        case SEEKCAMERA_FRAME_FORMAT_CORRECTED:
         default:
             syslog(LOG_WARNING, "The frame format %d is invalid.", frameFormat);
             break;
         }
-        #endif
     }
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::setFrameFormat(%d)", frameFormat);
 }
@@ -147,7 +132,7 @@ void EchoThermCamera::setShutterMode(int shutterMode)
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::setShutterMode(%d)", shutterMode);
     if (m_shutterMode != shutterMode)
     {
-        auto const newShutterMode= m_shutterMode = shutterMode;
+        auto const newShutterMode = m_shutterMode = shutterMode;
         auto result = SEEKCAMERA_SUCCESS;
         if (mp_camera)
         {
@@ -160,7 +145,7 @@ void EchoThermCamera::setShutterMode(int shutterMode)
                 result = seekcamera_set_shutter_mode((seekcamera_t *)mp_camera, SEEKCAMERA_SHUTTER_MODE_MANUAL);
             }
         }
-        //unlock the mutex to give the shutter timer thread a chance to loop again
+        // unlock the mutex to give the shutter timer thread a chance to loop again
         lock.unlock();
         _stopShutterClickThread();
         _startShutterClickThread();
@@ -508,45 +493,44 @@ void EchoThermCamera::_openSession(bool reconnect)
     auto status = SEEKCAMERA_SUCCESS;
     if (!reconnect)
     {
-        status = seekcamera_register_frame_available_callback((seekcamera_t *)mp_camera, 
-        [](seekcamera_t *, seekcamera_frame_t *p_cameraFrame, void *p_userData)
-        {
-            auto *p_this = (EchoThermCamera *)p_userData;
-            std::lock_guard<decltype(p_this->m_mut)> lock{p_this->m_mut};
-            seekframe_t *p_frame = nullptr;
-            //TODO: support the ability to capture multiple formats
-            //For example, you can pull YUY2 data AND thermography data
-            //You'd write the YUY2 data to the frame and you'd write the thermography data to a CSV
-            auto const status = seekcamera_frame_get_frame_by_format(p_cameraFrame, (seekcamera_frame_format_t)p_this->m_frameFormat, &p_frame);
-            if (status == SEEKCAMERA_SUCCESS)
-            {
-                if (p_this->m_loopbackDevice < 0)
-                {
-                    int const frameWidth = (int)seekframe_get_width(p_frame);
-                    int const frameHeight = (int)seekframe_get_height(p_frame);
-                    p_this->_openDevice(frameWidth, frameHeight);
-                }
-                if (p_this->m_loopbackDevice >= 0)
-                {
-                    void *const p_frameData = seekframe_get_data(p_frame);
-                    size_t const frameDataSize = seekframe_get_data_size(p_frame);
-                    ssize_t written = write(p_this->m_loopbackDevice, p_frameData, frameDataSize);
-                    if (written < 0)
-                    {
-                        syslog(LOG_ERR, "Error writing %zu bytes to v4l2 device %s: %m", frameDataSize, p_this->m_loopbackDeviceName.c_str());
-                    }
-                }
-            }
-            else
-            {
-                syslog(LOG_ERR, "Failed to get frame: %s.", seekcamera_error_get_str(status));
-            }
-        },
-        (void *)this);
+        status = seekcamera_register_frame_available_callback((seekcamera_t *)mp_camera,
+                                                              [](seekcamera_t *, seekcamera_frame_t *p_cameraFrame, void *p_userData)
+                                                              {
+                                                                  auto *p_this = (EchoThermCamera *)p_userData;
+                                                                  std::lock_guard<decltype(p_this->m_mut)> lock{p_this->m_mut};
+                                                                  seekframe_t *p_frame = nullptr;
+                                                                  // TODO: support the ability to capture multiple formats
+                                                                  // For example, you can pull YUY2 data AND thermography data
+                                                                  // You'd write the YUY2 data to the frame and you'd write the thermography data to a CSV
+                                                                  auto const status = seekcamera_frame_get_frame_by_format(p_cameraFrame, (seekcamera_frame_format_t)p_this->m_frameFormat, &p_frame);
+                                                                  if (status == SEEKCAMERA_SUCCESS)
+                                                                  {
+                                                                      if (p_this->m_loopbackDevice < 0)
+                                                                      {
+                                                                          int const frameWidth = (int)seekframe_get_width(p_frame);
+                                                                          int const frameHeight = (int)seekframe_get_height(p_frame);
+                                                                          p_this->_openDevice(frameWidth, frameHeight);
+                                                                      }
+                                                                      if (p_this->m_loopbackDevice >= 0)
+                                                                      {
+                                                                          void *const p_frameData = seekframe_get_data(p_frame);
+                                                                          size_t const frameDataSize = seekframe_get_data_size(p_frame);
+                                                                          ssize_t written = write(p_this->m_loopbackDevice, p_frameData, frameDataSize);
+                                                                          if (written < 0)
+                                                                          {
+                                                                              syslog(LOG_ERR, "Error writing %zu bytes to v4l2 device %s: %m", frameDataSize, p_this->m_loopbackDeviceName.c_str());
+                                                                          }
+                                                                      }
+                                                                  }
+                                                                  else
+                                                                  {
+                                                                      syslog(LOG_ERR, "Failed to get frame: %s.", seekcamera_error_get_str(status));
+                                                                  }
+                                                              },
+                                                              (void *)this);
     }
     if (status == SEEKCAMERA_SUCCESS)
     {
-        // set pipeline mode to SeekVision
         status = seekcamera_set_pipeline_mode((seekcamera_t *)mp_camera, (seekcamera_pipeline_mode_t)m_pipelineMode);
         if (status == SEEKCAMERA_SUCCESS)
         {
@@ -626,22 +610,22 @@ void EchoThermCamera::_openDevice(int width, int height)
                 v.fmt.pix.sizeimage = width * height * 2;
                 break;
             case SEEKCAMERA_FRAME_FORMAT_COLOR_AYUV:
-                //note: probably not supported by gstreamer v4l2src
-                 v.fmt.pix.pixelformat = V4L2_PIX_FMT_AYUV32;
-                 v.fmt.pix.sizeimage = width * height * 4;
-                 break;
+                // note: probably not supported by gstreamer v4l2src
+                v.fmt.pix.pixelformat = V4L2_PIX_FMT_AYUV32;
+                v.fmt.pix.sizeimage = width * height * 4;
+                break;
             case SEEKCAMERA_FRAME_FORMAT_COLOR_RGB565:
                 v.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB565;
-                  v.fmt.pix.sizeimage = width * height * 2;
-                  break;
+                v.fmt.pix.sizeimage = width * height * 2;
+                break;
             case SEEKCAMERA_FRAME_FORMAT_COLOR_ARGB8888:
                 v.fmt.pix.pixelformat = V4L2_PIX_FMT_ARGB32;
-                 v.fmt.pix.sizeimage = width * height * 4;
-                 break;
+                v.fmt.pix.sizeimage = width * height * 4;
+                break;
             case SEEKCAMERA_FRAME_FORMAT_GRAYSCALE:
-                 v.fmt.pix.pixelformat = V4L2_PIX_FMT_GREY;
-                 v.fmt.pix.sizeimage = width * height;
-                 break;
+                v.fmt.pix.pixelformat = V4L2_PIX_FMT_GREY;
+                v.fmt.pix.sizeimage = width * height;
+                break;
             case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6:
             case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT:
             case SEEKCAMERA_FRAME_FORMAT_PRE_AGC:
@@ -693,11 +677,9 @@ void EchoThermCamera::_startShutterClickThread()
                                                    {
                                                        break;
                                                    }
-                                               }
-                                           });
+                                               } });
     }
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::_startShutterClickThread()");
-
 }
 
 void EchoThermCamera::_stopShutterClickThread()
