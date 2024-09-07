@@ -96,7 +96,7 @@ To kill the daemon:
 
 ## EchoTherm App 
 
-The user interacts with the daemon using the `echotherm` application, which communicates with the Daemon using a socket on port 9182. 
+The user interacts with the daemon using the `echotherm` application, which communicates using a socket on port 9182. 
 
 An example `echotherm` command to set the Color Palette to Black Hot and the Shutter Mode to Auto:
 ```
