@@ -36,9 +36,9 @@ cmake ..
 make
 make install
 # build and install the v4l2loopback module
-dkms add -m v4l2loopback -v ${version}
-dkms build -m v4l2loopback -v ${version}
-dkms install -m v4l2loopback -v ${version}
+dkms add -m v4l2loopback -v ${version} --force
+dkms build -m v4l2loopback -v ${version} --force
+dkms install -m v4l2loopback -v ${version} --force
 # ensure the module loads on startup
 echo "v4l2loopback" > /etc/modules-load.d/v4l2loopback.conf
 # clean up the v4l2loopback source
