@@ -60,3 +60,6 @@ modprobe v4l2loopback -r
 echo "Renaming v4l2loopback to EchoTherm: Video Loopback..."
 modprobe v4l2loopback video_nr=$deviceNumber card_label="EchoTherm: Video Loopback"
 echo "Installation complete!"
+echo "To use the EchoTherm Camera, first run echothermd (EchoTherm Daemon) which will monitor for camera connections and stream the video to ${deviceId}"
+echo "You then use the echotherm app to interact with the camera (change color palettes, etc.), use the echotherm app, please echotherm --help"
+echo "For more information, refer to https://https://github.com/EchoMAV/EchoTherm-Daemon/"
