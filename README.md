@@ -43,7 +43,12 @@ echothermd --kill
 > In some applications, the user may wish to run echothermd as part of a system service which starts automatically upon boot.
 
 #### echothermd Allowed options
-`echothermd` may be started with the following (optional) startup options:
+`echothermd` may be started with the (optional) startup options.  
+Below is an example `echothermd` command to startup the EchoTherm Daemon and set the initial Color Palette to Hi and the Shutter Mode to Auto:
+```
+echothermd --colorPalette 7 --shutterMode 0
+```
+The full list of available startup options:
 ```
   --help                    Produce this message
   --kill                    Kill the existing instance
@@ -99,11 +104,10 @@ echothermd --kill
 
 The user interacts with the daemon using the `echotherm` application, which communicates using a socket on port 9182. 
 
-An example `echotherm` command to set the Color Palette to Black Hot and the Shutter Mode to Auto:
+Below is an example `echotherm` command to set the Color Palette to Black Hot and the Shutter Mode to Auto:
 ```
 echotherm --colorPalette 1 --shutterMode 0
 ```
-
 #### echotherm Allowed options
 ```
   --help                    Produce this message
