@@ -9,7 +9,8 @@ git clone https://github.com/EchoMAV/EchoTherm-Daemon.git
 cd EchoTherm-Daemon
 sudo ./install.sh
 ```
-The installation will place `echotherd` and `echotherm` in `/usr/local/bin` so they can be run from anywhere.
+> [!IMPORTANT]  
+> The installation will place `echothermd` and `echotherm` in `/usr/local/bin` so they can be run from anywhere.
 
 ## EchoTherm Daemon
 
