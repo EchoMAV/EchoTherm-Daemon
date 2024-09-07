@@ -31,17 +31,17 @@ $SUDO udevadm control --reload
 # clean up the build directory if it exists
 rm -rf build
 mkdir build
-cd build
+$SUDO cd build
 # build the application and install it
 cmake ..
-make
+$SUDO make
 $SUDO make install
 # build and install the v4l2loopback module
 $SUDO dkms add -m v4l2loopback -v ${version} --force
 $SUDO dkms build -m v4l2loopback -v ${version} --force
 $SUDO dkms install -m v4l2loopback -v ${version} --force
 # ensure the module loads on startup
-echo "v4l2loopback" > /etc/modules-load.d/v4l2loopback.conf
+$SUDO echo "v4l2loopback" > /etc/modules-load.d/v4l2loopback.conf
 # clean up the v4l2loopback source
 $SUDO rm -rf /usr/src/v4l2loopback-${version}
 
