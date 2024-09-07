@@ -44,9 +44,14 @@ echo "v4l2loopback" > /etc/modules-load.d/v4l2loopback.conf
 # clean up the v4l2loopback source
 rm -rf /usr/src/v4l2loopback-${version}
 
+# this is not working
+echo "Getting device ID"
 deviceId=$(ls /sys/devices/virtual/video4linux | head -n 1)
 deviceNumber=${deviceId: -1}
 
 #rename the device
+#unloads the v4l2loopback
+echo "Unloading v4l2loopback"
 modprobe v4l2loopback -r
+echo "Renaming v4l2loopback"
 modprobe v4l2loopback video_nr=$deviceNumber card_label="EchoTherm Video Loopback Device"
