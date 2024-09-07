@@ -614,7 +614,7 @@ int main(int argc, char *argv[])
         }
         if (vm.count("kill"))
         {
-            syslog(LOG_NOTICE, "Killing the existing instance...\nPlease run ./echothermd again if you wish to restart the daemon.");
+            syslog(LOG_NOTICE, "Killing the existing instance...\nPlease run echothermd again if you wish to restart the daemon.");
             remove(np_lockFile);
             closelog();
             n_running = false;
@@ -625,7 +625,7 @@ int main(int argc, char *argv[])
         // Check that another instance isn't already running by checking for a lock file
         if (!_checkLock())
         {
-            syslog(LOG_ERR, "Error: another instance of the program is already running.\nTo shutdown, run ./echothermd --kill");
+            syslog(LOG_ERR, "Error: another instance of the program is already running.\nTo shutdown, run echothermd --kill");
             returnCode = EXIT_FAILURE;
             break;
         }
