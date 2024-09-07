@@ -1,5 +1,5 @@
 #! /bin/bash
-
+echo "Installing EchoTherm camera dependencies and V4L Loopback device..."
 arch=$(uname -m)
 if [[ $arch == x86_64* ]]; then
     echo "installing on x86_64 architecture"
@@ -47,13 +47,13 @@ rm -rf /usr/src/v4l2loopback-${version}
 
 # load the module
 modprobe v4l2loopback
-# this is not working
-echo "Getting device number"
+
+echo "Getting device number..."
 deviceId=$(ls /sys/devices/virtual/video4linux | head -n 1)
 deviceNumber=${deviceId: -1}
 echo "Got device Number ${$deviceNumber}"
 #rename the device
-#unloads the v4l2loopback
+#unloads the v4l2loopback to it can be renamed
 echo "Unloading v4l2loopback"
 modprobe v4l2loopback -r
 echo "Renaming v4l2loopback"
