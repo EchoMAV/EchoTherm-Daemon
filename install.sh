@@ -57,6 +57,6 @@ echo "Got v4l2 device Number ${deviceNumber}"
 #unloads the v4l2loopback to it can be renamed
 
 modprobe v4l2loopback -r
-echo "Renaming v4l2loopback to EchoTherm: Video Loopback Device..."
-modprobe v4l2loopback video_nr=$deviceNumber card_label="EchoTherm: Video Loopback Device"
+echo "Renaming v4l2loopback to EchoTherm: Video Loopback..."
+modprobe v4l2loopback video_nr=$deviceNumber card_label="EchoTherm: Video Loopback"
 echo "Installation complete!"
