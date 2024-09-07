@@ -1,5 +1,6 @@
 #! /bin/bash
-echo "Installing EchoTherm camera dependencies and V4L Loopback device...\n"
+echo "Installing EchoTherm camera dependencies and V4L Loopback device..."
+echo ""
 arch=$(uname -m)
 if [[ $arch == x86_64* ]]; then
     echo "Installing on x86_64 architecture"
