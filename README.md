@@ -13,32 +13,33 @@ The installation will place `echotherd` and `echotherm` in `/usr/local/bin` so t
 
 ## EchoTherm Daemon
 
-EchoTherm Daemon `echothermd` must be started before the EchoTherm camera can be used. This background process (daemon) runs continuously, and manages camera connects and disconnects, and inteprepts and implements commands coming from the user application (echotherm). It also sends RGB camera frames to the Video4Linux loopback device so that the EchoTherm output can easily be ingested by commong media frameworks such as gstreamer and ffmpeg.  
+EchoTherm Daemon `echothermd` must be started before the EchoTherm camera can be used. This background process (daemon) runs continuously, manages camera connects and disconnects, and inteprepts and implements commands coming from the user application (echotherm). It also sends RGB camera frames to the Video4Linux loopback device so that the EchoTherm output can easily be ingested by commong media frameworks such as gstreamer and ffmpeg.  
 
 To start the echotherm daemon:
 ```
 echothermd
 ```
-This will start a background process. It will write status to the system log which can be viewed using /var/log/syslog, *or* to the journal on systemd-based operating systems.  
+This will start a background process. It will write status to the system log which can be viewed at /var/log/syslog, *or* on to the journal systemd-based operating systems.  
 
-To view syslog:
+For journal-based OS (most common), then to view `echothermd` journal logs using:
 ```
-sudo cat /var/log/syslog   # to view the full log
-sudo tail -f /var/log/syslog  # to tail the syslog
-```
-If your system is a journal-based OS, then to view journal logs:
-```
-journalctl -t echothermd  #to view the full log
+journalctl -t echothermd    #to view the full log
 journalctl -ft echothermd   #to tail the log
 ```
-
-To kill the daemon
+To view syslog (non journal-based OS):
+```
+sudo cat /var/log/syslog      #to view the full log
+sudo tail -f /var/log/syslog  #to tail the syslog
+```
+To kill the daemon:
 ```
 ./echothermd --kill
 ```
 The daemon uses a lock file placed in `/tmp/echothermd.lock` to keep track of the daemon running or not.  
 
-In some applications, the user may wish to run echothermd as part of a system service which starts automatically upon boot.
+> [!TIP]
+> In some applications, the user may wish to run echothermd as part of a system service which starts automatically upon boot.
+
 
 #### echothermd Allowed options
 ```
