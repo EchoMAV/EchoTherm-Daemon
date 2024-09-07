@@ -2,13 +2,14 @@
 
 The idea here is that an EchoTherm Daemon is started which manages the camera, looks for connects/disconnects, and creates the V4L loopback device  
 
-The user interacts with the daemon using the "echotherm" application, which communicates with the Daemon using a simple socket.  
+The user interacts with the daemon using the "echotherm" application, which communicates with the Daemon using a simple socket on port 9182. 
 
 ### Installation
 Run
 ```
 sudo ./install.sh
 ```
+The installation will place echotherd and echotherm in `/usr/local/bin` so they can be run from anywhere.
 
 ### Uninstallation
 Run
@@ -19,12 +20,20 @@ sudo ./uninstall.sh
 ### Daemon - echothermd.c
 This is the daemon implementation to run
 ```
-./echothermd
+echothermd
 ```
-this should start a background process. It will write status to the system log which can be viewed using 
+this should start a background process. It will write status to the system log which can be viewed using /var/log/syslog, *or* with the journal on systemd-based operating systems.  
+
+To view syslog
 ```
-sudo tail -f /var/log/syslog
+sudo cat /var/log/syslog   # to view the full log
+sudo tail -f /var/log/syslog  # to tail the syslog
 ```
+To view journal logs
+```
+journalctl -t echothermd  #to view the full log
+journalctl -ft echothermd   #to tail the log
+
 To kill the daemon
 ```
 ./echothermd --kill

@@ -28,7 +28,7 @@ namespace
     constexpr static inline auto const n_bufferSize = 1024;
     constexpr static inline auto const np_lockFile = "/tmp/echothermd.lock";
     constexpr static inline auto const np_logName = "echothermd";
-    constexpr static inline auto const n_port = 8888;
+    constexpr static inline auto const n_port = 9182;
     constexpr static inline auto const n_maxEpollEvents = 10;
     volatile bool n_running = true;
 
@@ -621,7 +621,8 @@ int main(int argc, char *argv[])
             returnCode = system("pkill -9 echothermd");
             break;
         }
-        syslog(LOG_NOTICE, "Starting EchoTherm daemon, v0.01 © EchoMAV, LLC 2024\nLogging output to /var/log/syslog");
+        std::cout<<"\nStarting EchoTherm daemon, v1.0.0 ©EchoMAV, LLC 2024\nTo view log output, journalctl -t echothermd\nTo tail log output, journalctl -ft echothermd"<<std::endl;
+        syslog(LOG_NOTICE, "Starting EchoTherm daemon, v1.0.0 ©EchoMAV, LLC 2024");
         // Check that another instance isn't already running by checking for a lock file
         if (!_checkLock())
         {
