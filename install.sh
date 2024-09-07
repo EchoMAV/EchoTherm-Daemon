@@ -51,7 +51,7 @@ modprobe v4l2loopback
 echo "Getting device number..."
 deviceId=$(ls /sys/devices/virtual/video4linux | head -n 1)
 deviceNumber=${deviceId: -1}
-echo "Got device Number ${$deviceNumber}"
+echo "Got device Number ${deviceNumber}"
 #rename the device
 #unloads the v4l2loopback to it can be renamed
 echo "Unloading v4l2loopback"
