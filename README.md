@@ -30,6 +30,7 @@ If your system is a journal-based OS, then to view journal logs:
 ```
 journalctl -t echothermd  #to view the full log
 journalctl -ft echothermd   #to tail the log
+```
 
 To kill the daemon
 ```
