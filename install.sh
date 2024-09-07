@@ -14,7 +14,7 @@ apt install -y dkms cmake libboost-all-dev libgstreamer1.0-dev libgstreamer-plug
 # download the v4l2loopback stuff and place it into /usr/src
 version=0.12.5
 curl -L https://github.com/umlaeute/v4l2loopback/archive/v${version}.tar.gz | tar xvz -C /usr/src
-# copy seek-thermal libs and include files
+# copy thermal libs and include files
 if [[ $arch == x86_64* ]]; then
     cp lib/x86_64-linux-gnu/* /usr/local/lib
 else
