@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
     {
         if (system("pgrep echothermd > /dev/null 2>&1"))
         {
-            std::cerr << "Error, the EchoTherm daemon is not running, please start it first with ./echothermd." << std::endl;
+            std::cerr << "Error, the EchoTherm daemon is not running, please start it first with echothermd." << std::endl;
             returnCode = EXIT_FAILURE;
             break;
         }
