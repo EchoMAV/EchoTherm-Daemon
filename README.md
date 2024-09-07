@@ -34,7 +34,7 @@ sudo tail -f /var/log/syslog  #to tail the syslog
 ```
 To kill the daemon:
 ```
-./echothermd --kill
+echothermd --kill
 ```
 > [!NOTE]  
 > The daemon uses a lock file placed in `/tmp/echothermd.lock` to keep track of the daemon running or not. Typically this file is managed automatically by `echothermd`
@@ -42,12 +42,12 @@ To kill the daemon:
 > [!TIP]
 > In some applications, the user may wish to run echothermd as part of a system service which starts automatically upon boot.
 
-
 #### echothermd Allowed options
+`echothermd` may be started with the following (optional) startup options:
 ```
   --help                    Produce this message
   --kill                    Kill the existing instance
-  --loopbackDeviceName arg  Choose the initial loopback device name (default=/dev/video0)
+  --loopbackDeviceName arg  Choose the initial loopback device name (default=/dev/video0 if available on the system)
   --colorPalette arg        Choose the initial color palette
                             COLOR_PALETTE_WHITE_HOT =  0 (default)
                             COLOR_PALETTE_BLACK_HOT =  1
