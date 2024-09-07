@@ -1,35 +1,32 @@
-## EchoTherm Daemon Implementation
+# EchoTherm Software Package
 
-The idea here is that an EchoTherm Daemon is started which manages the camera, looks for connects/disconnects, and creates the V4L loopback device  
-
-The user interacts with the daemon using the "echotherm" application, which communicates with the Daemon using a simple socket on port 9182. 
+The EchoTherm package consists of three major components, the EchoTherm Daemon (echothermd), The EchoTherm app (echotherm) and a Video4Linux loopback device.  
 
 ### Installation
-Run
+clone this repository, then run the install script:
 ```
+git clone https://github.com/EchoMAV/EchoTherm-Daemon.git
+cd EchoTherm-Daemon
 sudo ./install.sh
 ```
-The installation will place echotherd and echotherm in `/usr/local/bin` so they can be run from anywhere.
+The installation will place `echotherd` and `echotherm` in `/usr/local/bin` so they can be run from anywhere.
 
-### Uninstallation
-Run
-```
-sudo ./uninstall.sh
-```
+## EchoTherm Daemon
 
-### Daemon - echothermd.c
-This is the daemon implementation to run
+EchoTherm Daemon (echothermd) must be started before the EchoTherm camera can be used. The background process (daemon) runs continuously, and manages camera connects and disconnects, and inteprepts and implements command coming from the user application (echotherm). It also sends RGB camera frames to the Video4Linux loopback device so that the EchoTherm output can easily be ingested by commong media frameworks such as gstreamer and ffmpeg.  
+
+To start the echotherm daemon:
 ```
 echothermd
 ```
-this should start a background process. It will write status to the system log which can be viewed using /var/log/syslog, *or* with the journal on systemd-based operating systems.  
+This will start a background process. It will write status to the system log which can be viewed using /var/log/syslog, *or* to the journal on systemd-based operating systems.  
 
-To view syslog
+To view syslog:
 ```
 sudo cat /var/log/syslog   # to view the full log
 sudo tail -f /var/log/syslog  # to tail the syslog
 ```
-To view journal logs
+If your system is a journal-based OS, then to view journal logs:
 ```
 journalctl -t echothermd  #to view the full log
 journalctl -ft echothermd   #to tail the log
@@ -92,20 +89,9 @@ The daemon uses a lock file placed in `/tmp/echothermd.lock` to keep track of th
                             non-zero = enabled
 ```
 
+## EchoTherm App 
 
-### User application - echotherm.c
-This is the application the user can use to interact with the daemon. To build and run
-```
-g++ -o echotherm echotherm.c
-./echotherm --colorPalette 1 --shutterMode 3
-```
-If you'd like to be able to run this from anywhere
-```
-sudo mv echotherm /usr/local/bin/
-# now you can run it from any directory as echotherm --colorPalette <number> --shutterMode <number>
-```
-
-The above will send socket commands to the daemon process, and it is expected (todo) that the daemon will then interact with the camera api to make these settings apply
+The user interacts with the daemon using the `echotherm` application, which communicates with the Daemon using a socket on port 9182. 
 
 #### echotherm Allowed options
 ```
@@ -146,9 +132,11 @@ The above will send socket commands to the daemon process, and it is expected (t
                             zero     = disabled
                             non-zero = enabled
 ```
-
+## Uninstall
+```
+sudo ./uninstall.sh
+```
 
 ## TO DO
-- [ ] Support thermography
-- [ ] Support ability to change loopbackDeviceName and frameFormat mid-stream
-- [ ] Add any other commands which may be relevant
+- [ ] Support thermography snapshots
+
