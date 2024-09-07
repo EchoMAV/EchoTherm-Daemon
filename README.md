@@ -35,8 +35,9 @@ To kill the daemon:
 ```
 ./echothermd --kill
 ```
-The daemon uses a lock file placed in `/tmp/echothermd.lock` to keep track of the daemon running or not.  
-
+> [!NOTE]  
+> The daemon uses a lock file placed in `/tmp/echothermd.lock` to keep track of the daemon running or not. Typically this file is managed automatically by `echothermd`
+  
 > [!TIP]
 > In some applications, the user may wish to run echothermd as part of a system service which starts automatically upon boot.
 
@@ -97,9 +98,10 @@ The daemon uses a lock file placed in `/tmp/echothermd.lock` to keep track of th
 
 The user interacts with the daemon using the `echotherm` application, which communicates with the Daemon using a socket on port 9182. 
 
-An example `echotherm` command:
+An example `echotherm` command to set the Color Palette to Black Hot and the Shutter Mode to Auto:
 ```
 echotherm --colorPalette 1 --shutterMode 0
+```
 
 #### echotherm Allowed options
 ```
