@@ -10,7 +10,7 @@ cd EchoTherm-Daemon
 sudo ./install.sh
 ```
 > [!IMPORTANT]  
-> The installation will place `echothermd` and `echotherm` in `/usr/local/bin` so they can be run from anywhere.
+> The installation script will place `echothermd` and `echotherm` in `/usr/local/bin` so they can be run from anywhere.
 
 ## EchoTherm Daemon
 
