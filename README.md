@@ -13,7 +13,7 @@ The installation will place `echotherd` and `echotherm` in `/usr/local/bin` so t
 
 ## EchoTherm Daemon
 
-EchoTherm Daemon (echothermd) must be started before the EchoTherm camera can be used. The background process (daemon) runs continuously, and manages camera connects and disconnects, and inteprepts and implements command coming from the user application (echotherm). It also sends RGB camera frames to the Video4Linux loopback device so that the EchoTherm output can easily be ingested by commong media frameworks such as gstreamer and ffmpeg.  
+EchoTherm Daemon `echothermd` must be started before the EchoTherm camera can be used. This background process (daemon) runs continuously, and manages camera connects and disconnects, and inteprepts and implements commands coming from the user application (echotherm). It also sends RGB camera frames to the Video4Linux loopback device so that the EchoTherm output can easily be ingested by commong media frameworks such as gstreamer and ffmpeg.  
 
 To start the echotherm daemon:
 ```
@@ -36,7 +36,9 @@ To kill the daemon
 ```
 ./echothermd --kill
 ```
-The daemon uses a lock file placed in `/tmp/echothermd.lock` to keep track of the daemon running or not  
+The daemon uses a lock file placed in `/tmp/echothermd.lock` to keep track of the daemon running or not.  
+
+In some applications, the user may wish to run echothermd as part of a system service which starts automatically upon boot.
 
 #### echothermd Allowed options
 ```
@@ -94,6 +96,10 @@ The daemon uses a lock file placed in `/tmp/echothermd.lock` to keep track of th
 
 The user interacts with the daemon using the `echotherm` application, which communicates with the Daemon using a socket on port 9182. 
 
+An example `echotherm` command:
+```
+echotherm --colorPalette 1 --shutterMode 0
+
 #### echotherm Allowed options
 ```
   --help                    Produce this message
@@ -113,14 +119,14 @@ The user interacts with the daemon using the `echotherm` application, which comm
                             COLOR_PALETTE_USER_2    = 11
                             COLOR_PALETTE_USER_3    = 12
                             COLOR_PALETTE_USER_4    = 13
-  --shutterMode arg         Choose the shutter mode
-                            negative = manual
-                            zero     = auto
-                            positive = number of seconds between shutter events
+  --shutterMode arg         Choose the shutter mode, where the ar
+                            -1  = Manual (use --shutter argument for future shutter control)
+                            0   = Auto (Camera will activate the shutter as needed to optimize quality)
+                            > 0 = Time-based shutter, number of seconds between shutter events
   --pipelineMode arg        Choose the pipeline mode
                             PIPELINE_LITE       = 0
                             PIPELINE_LEGACY     = 1
-                            PIPELINE_PROCESSED  = 2
+                            PIPELINE_PROCESSED  = 2 (Recommneded)
                             Note that in PIPELINE_PROCESSED, sharpen, 
                             flat scene, and gradient filters are disabled
   --sharpenFilterMode arg   Choose the state of the sharpen filter
