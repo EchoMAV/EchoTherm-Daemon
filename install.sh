@@ -29,8 +29,8 @@ $SUDO ldconfig
 # reload your device rules
 $SUDO udevadm control --reload 
 # clean up the build directory if it exists
-rm -rf build
-mkdir build
+$SUDO rm -rf build
+$SUDO mkdir build
 $SUDO cd build
 # build the application and install it
 cmake ..
