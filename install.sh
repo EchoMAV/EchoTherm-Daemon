@@ -1,12 +1,12 @@
 #! /bin/bash
-echo "Installing EchoTherm camera dependencies and V4L Loopback device..."
+echo "Installing EchoTherm camera dependencies and V4L Loopback device...\n"
 arch=$(uname -m)
 if [[ $arch == x86_64* ]]; then
-    echo "installing on x86_64 architecture"
+    echo "Installing on x86_64 architecture"
 elif [[ $arch == aarch64* ]]; then
-    echo "installing on aarch64 architecture"
+    echo "Installing on aarch64 architecture"
 else
-    echo "unrecognized architecture"
+    echo "Error: Unrecognized architecture, exiting."
     exit 1
 fi
 # install all the stuff you'll need (dkms, cmake, boost, gstreamer)
@@ -48,13 +48,14 @@ rm -rf /usr/src/v4l2loopback-${version}
 # load the module
 modprobe v4l2loopback
 
-echo "Getting device number..."
+echo "Getting v4l2 device number..."
 deviceId=$(ls /sys/devices/virtual/video4linux | head -n 1)
 deviceNumber=${deviceId: -1}
-echo "Got device Number ${deviceNumber}"
+echo "Got v4l2 device Number ${deviceNumber}"
 #rename the device
 #unloads the v4l2loopback to it can be renamed
-echo "Unloading v4l2loopback"
+
 modprobe v4l2loopback -r
-echo "Renaming v4l2loopback"
-modprobe v4l2loopback video_nr=$deviceNumber card_label="EchoTherm Video Loopback Device"
+echo "Renaming v4l2loopback to EchoTherm: Video Loopback Device..."
+modprobe v4l2loopback video_nr=$deviceNumber card_label="EchoTherm: Video Loopback Device"
+echo "Installation complete!"
