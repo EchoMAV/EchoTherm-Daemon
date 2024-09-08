@@ -50,7 +50,7 @@ echothermd --kill
 #### echothermd Allowed options
 `echothermd` may be started with the (optional) startup options.  
 
-Below is an example `echothermd` command to startup the EchoTherm Daemon and set the initial Color Palette to Hi and the Shutter Mode to Auto:
+Below is an example `echothermd` command to startup the EchoTherm Daemon and set the initial Color Palette to **Hi** and the Shutter Mode to **Auto**:
 ```
 echothermd --colorPalette 7 --shutterMode 0
 ```
@@ -110,7 +110,7 @@ The full list of available startup options:
 
 The `echotherm` application is how the user can interact with the camera while it is running. This allows runtime changes including color palette, shutter modes and other options shown below. The `echotherm` app communicates with `echothermd` using a socket on port 9182. 
 
-Below is an example `echotherm` command to set the Color Palette to *Black Hot* and the Shutter Mode to *Auto*:
+Below is an example `echotherm` command to set the Color Palette to **Black Hot** and the Shutter Mode to **Auto**:
 ```
 echotherm --colorPalette 1 --shutterMode 0
 ```
