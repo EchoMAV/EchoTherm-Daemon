@@ -27,7 +27,7 @@ To start the echotherm daemon:
 ```
 echothermd
 ```
-This will start a background process. It will write status to the system log which can be viewed at /var/log/syslog, *or* on to the journal systemd-based operating systems.  
+Running `echothermd` will fork a background process. Because it is a background process, log information will not be avilable on the console, however log data will be written to the system log which can be viewed using either the system journal (journalctl) or at /var/log/syslog, depending if your system is journal-based or not. Journal-based systems are the most modern/common. See the instructions below for how to view the `echothermd` logs.
 
 For journal-based OS (most common), to view `echothermd` journal logs use:
 ```
