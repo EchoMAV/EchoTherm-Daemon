@@ -1,16 +1,21 @@
 # EchoTherm Software Package
 
-The EchoTherm package consists of three major components, the EchoTherm Daemon (echothermd), The EchoTherm app (echotherm) and a Video4Linux loopback device.  
+The EchoTherm software package consists of three major components
+- The EchoTherm Daemon (echothermd)
+- The EchoTherm app (echotherm)
+- Video4Linux loopback device
+
+Each component is described below.  
 
 ### Installation
-clone this repository, then run the install script:
+To build and install, first clone this repository, then run the install script:
 ```
 git clone https://github.com/EchoMAV/EchoTherm-Daemon.git
 cd EchoTherm-Daemon
 sudo ./install.sh
 ```
 > [!IMPORTANT]  
-> The installation script will place `echothermd` and `echotherm` in `/usr/local/bin` so they can be run from anywhere.
+> The installation script will place `echothermd` and `echotherm` in `/usr/local/bin`.
 
 ## EchoTherm Daemon
 
@@ -155,16 +160,59 @@ To identify the EchoTherm V4L Loopback device:
 v4l2-ctl --list-devices  #find the device named EchoTherm: Video Loopback
 ```
 ### Using with Gstreamer
-The example below ingests this V4L source into a gstreamer pipeline and stream it to an IP address using RTP UDP using the v4l2h264enc encoder. The pipeline below was tested on a Raspberry Pi 4. Other embeddded systems may have other hardware optimized encoders, or other software encoders. The fields `{Device id}`, `{IP Address}` and `{Port}` should be changed for your use case. The bitrate below is 2000 kbps, and can also be changed for your usecase.
+The example below ingests the V4L source into a gstreamer pipeline and streams it to an IP address (RTP UDP) using the v4l2h264enc encoder element. The pipeline below was tested on a Raspberry Pi 4. Other embeddded systems may have other hardware optimized encoders, or other software encoders. The fields `{Device id}`, `{IP Address}` and `{Port}` should be changed for your use case. The bitrate below is shown at 2000 kbps (2000000 bps), and can also be changed for your usecase.
 ```
 gst-launch-1.0 v4l2src device={Device id} io-mode=mmap ! "video/x-raw,format=(string)I420,width=(int)320,height=(int)256,framerate=(fraction)27/1" ! v4l2h264enc extra-controls="controls,video_bitrate=2000000" ! "video/x-h264,level=(string)4.2" ! rtph264pay config-interval=1 pt=96 ! udpsink host={IP Address} port={Port} sync=false
 ```
 
-
-
 ## Uninstall
 ```
 sudo ./uninstall.sh
+```
+
+## Running as a service
+To run echothermd as a service on a Linux system using systemd, you need to create a systemd service unit file. This file will define how the echothermd service should be started, stopped, and managed.
+
+1. Create the systemd service unit file: Create a new file named echothermd.service in the /etc/systemd/system/ directory.
+```
+sudo nano /etc/systemd/system/echothermd.service
+```
+2. Define the service configuration: Add the following content to the echothermd.service file. Adjust the paths and options as necessary for your specific setup.
+```[Unit]
+Description=EchoTherm Daemon
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/echothermd
+Restart=always
+User=nobody
+Group=nogroup
+
+[Install]
+WantedBy=multi-user.target
+```
+Description: A brief description of the service.  
+After: Specifies the service dependencies.  
+ExecStart: The command to start the echothermd service. Adjust the path to the actual location of the echothermd binary.  
+Restart: Specifies the restart policy. always means the service will be restarted if it stops.  
+User and Group: The user and group under which the service will run. Adjust as necessary.  
+WantedBy: Specifies the target to which this service should be added.  
+
+3. Reload systemd to recognize the new service:
+```
+sudo systemctl daemon-reload
+```
+4. Enable the service to start on boot:
+```
+sudo systemctl enable echothermd
+```
+5. Start the service
+```
+sudo systemctl start echothermd
+```
+6. Check the status of the service:
+```
+sudo systemctl status echothermd
 ```
 
 ## TO DO
