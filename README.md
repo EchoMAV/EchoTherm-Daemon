@@ -1,9 +1,9 @@
 # EchoTherm Software Package
 
-The EchoTherm software package consists of three major components
+The EchoTherm software package consists of three major components:
 - The EchoTherm Daemon (echothermd)
-- The EchoTherm app (echotherm)
-- Video4Linux loopback device
+- The EchoTherm User Application (echotherm)
+- Video4Linux Loopback Device
 
 Each component is described below.  
 
