@@ -19,7 +19,7 @@ sudo ./install.sh
 
 ## EchoTherm Daemon
 
-EchoTherm Daemon `echothermd` must be started before the EchoTherm camera can be used. This background process (daemon) runs continuously, manages camera connects and disconnects, and inteprepts and implements commands coming from the user application (echotherm). It also sends RGB camera frames to the Video4Linux loopback device so that the EchoTherm output can easily be ingested by commong media frameworks such as gstreamer and ffmpeg.  
+EchoTherm Daemon `echothermd` must be started before the EchoTherm camera can be used. This background process (daemon) runs continuously, manages camera connects and disconnects, and inteprepts and implements commands coming from the user application `echotherm`. It also sends video camera frames (YUY2 pixel format by default) to the Video4Linux loopback device so that the EchoTherm colorized video output can easily be ingested by commong media frameworks such as [gstreamer](https://gstreamer.freedesktop.org/) and [ffmpeg](https://www.ffmpeg.org/).  
 
 To start the echotherm daemon:
 ```
