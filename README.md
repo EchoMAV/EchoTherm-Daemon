@@ -47,7 +47,7 @@ echothermd --kill
 > [!TIP]
 > In some applications, the user may wish to run echothermd as part of a system service which starts automatically upon boot.
 
-#### echothermd Allowed options
+#### echothermd Allowed Options
 `echothermd` may be started with the (optional) startup options.  
 
 Below is an example `echothermd` command to startup the EchoTherm Daemon and set the initial Color Palette to **Hi** and the Shutter Mode to **Auto**:
@@ -114,7 +114,7 @@ Below is an example `echotherm` command to set the Color Palette to **Black Hot*
 ```
 echotherm --colorPalette 1 --shutterMode 0
 ```
-#### echotherm Allowed options
+#### echotherm Allowed Options
 ```
   --help                    Produce this message
   --shutter                 Trigger the shutter
@@ -170,7 +170,7 @@ gst-launch-1.0 v4l2src device={Device id} io-mode=mmap ! "video/x-raw,format=(st
 sudo ./uninstall.sh
 ```
 
-## Running as a service
+## Running as a Service
 To run echothermd as a service on a Linux system using systemd, you need to create a systemd service unit file. This file will define how the echothermd service should be started, stopped, and managed.
 
 1. Create the systemd service unit file: Create a new file named echothermd.service in the /etc/systemd/system/ directory.
