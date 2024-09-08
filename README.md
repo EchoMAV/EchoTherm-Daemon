@@ -27,12 +27,12 @@ echothermd
 ```
 This will start a background process. It will write status to the system log which can be viewed at /var/log/syslog, *or* on to the journal systemd-based operating systems.  
 
-For journal-based OS (most common), then to view `echothermd` journal logs using:
+For journal-based OS (most common), to view `echothermd` journal logs use:
 ```
 journalctl -t echothermd    #to view the full log
 journalctl -ft echothermd   #to tail the log
 ```
-To view syslog (non journal-based OS):
+To view syslog on non-journal-based OSes:
 ```
 sudo cat /var/log/syslog      #to view the full log
 sudo tail -f /var/log/syslog  #to tail the syslog
@@ -108,9 +108,9 @@ The full list of available startup options:
 
 ## EchoTherm App 
 
-The user interacts with the daemon using the `echotherm` application, which communicates using a socket on port 9182. 
+The `echotherm` application is how the user can interact with the camera while it is running. This allows runtime changes including color palette, shutter modes and other options shown below. The `echotherm` app communicates with `echothermd` using a socket on port 9182. 
 
-Below is an example `echotherm` command to set the Color Palette to Black Hot and the Shutter Mode to Auto:
+Below is an example `echotherm` command to set the Color Palette to *Black Hot* and the Shutter Mode to *Auto*:
 ```
 echotherm --colorPalette 1 --shutterMode 0
 ```
