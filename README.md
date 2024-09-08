@@ -47,7 +47,7 @@ echothermd --kill
 > The daemon uses a lock file placed in `/tmp/echothermd.lock` to keep track of the daemon running or not. Typically this file is managed automatically by `echothermd`
   
 > [!TIP]
-> In some applications, the user may wish to run echothermd as part of a system service which starts automatically upon boot.
+> In some applications, the user may wish to run `echothermd` as part of a system service which starts automatically upon boot. Instructions below provide guidance for how to implement `echothermd` as a service.
 
 #### echothermd Allowed Options
 `echothermd` may be started with the (optional) startup options.  
