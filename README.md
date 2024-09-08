@@ -1,6 +1,6 @@
 # EchoTherm Software Package
 
-The EchoTherm camera is a 320x256 pixel ultra-miniature and ultra-light weight thermal camera. It is ideal for use in situations where size, weight and cost are driving factors, such as small drones. The EchoTherm Software Package is a collection of utilities to to enable the use the EchoTherm camera on Linux-based distributions running on ARM64 or x86_64 architectures.
+The EchoTherm camera is a 320x256 pixel ultra-miniature and ultra-light weight thermal camera. It is ideal for use in situations where size, weight and cost are driving factors, such as small drones. The EchoTherm Software Package is a collection of utilities to to enable the use the EchoTherm camera on Linux distributions running on ARM64 or x86_64 architectures.
 
 The EchoTherm software package consists of three major components:
 - The EchoTherm Daemon (echothermd)
