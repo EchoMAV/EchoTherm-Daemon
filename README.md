@@ -160,7 +160,7 @@ To identify the EchoTherm V4L Loopback device:
 v4l2-ctl --list-devices  #find the device named EchoTherm: Video Loopback
 ```
 ### Using with Gstreamer
-The example below ingests the V4L source into a gstreamer pipeline and streams it to an IP address (RTP UDP) using the v4l2h264enc encoder element. The pipeline below was tested on a Raspberry Pi 4. Other embeddded systems may have other hardware optimized encoders, or other software encoders. The fields `{Device id}`, `{IP Address}` and `{Port}` should be changed for your use case. The bitrate below is shown at 2000 kbps (2000000 bps), and can also be changed for your usecase.
+The example below ingests the V4L source into a gstreamer pipeline and streams it to an IP address (RTP UDP) using the v4l2h264enc encoder element. The pipeline below was tested on a Raspberry Pi 4. Other embeddded systems may have other hardware optimized encoders, or other software encoders. The fields `{Device id}`, `{IP Address}` and `{Port}` should be changed for your use case. The bitrate below is shown at 2000 kbps (2000000 bps), and can also be changed for your use case.
 ```
 gst-launch-1.0 v4l2src device={Device id} io-mode=mmap ! "video/x-raw,format=(string)I420,width=(int)320,height=(int)256,framerate=(fraction)27/1" ! v4l2h264enc extra-controls="controls,video_bitrate=2000000" ! "video/x-h264,level=(string)4.2" ! rtph264pay config-interval=1 pt=96 ! udpsink host={IP Address} port={Port} sync=false
 ```
