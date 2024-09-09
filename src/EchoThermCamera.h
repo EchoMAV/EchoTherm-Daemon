@@ -70,6 +70,8 @@ public:
     bool start();
     // stop the camera manager and disconnect the camera if it is connected
     void stop();
+    // Get a string representing the status of the camera
+    std::string getStatus() const;
 
 private:
     void _updateFilterHelper(int filterType, int filterState);

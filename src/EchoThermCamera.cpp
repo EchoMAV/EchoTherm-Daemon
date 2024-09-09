@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <cstring>
+#include <sstream>
 
 // Define the DEBUG macro to enable debug code
 // #define DEBUG
@@ -29,44 +30,44 @@ EchoThermCamera::EchoThermCamera()
       m_shutterClickCondition{},
       m_shutterClickThreadRunning{false}
 {
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::EchoThermCamera()");
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::EchoThermCamera()");
-    #endif
+#endif
 }
 
 EchoThermCamera::~EchoThermCamera()
 {
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::~EchoThermCamera()");
-    #endif
+#endif
     stop();
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::~EchoThermCamera()");
-    #endif
+#endif
 }
 
 void EchoThermCamera::setLoopbackDeviceName(std::string loopbackDeviceName)
 {
     std::lock_guard<decltype(m_mut)> lock{m_mut};
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::setLoopbackDeviceName(%s)", loopbackDeviceName.c_str());
-    #endif
+#endif
     if (loopbackDeviceName != m_loopbackDeviceName)
     {
         m_loopbackDeviceName = std::move(loopbackDeviceName);
     }
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::setLoopbackDeviceName(%s)", loopbackDeviceName.c_str());
-    #endif
+#endif
 }
 
 void EchoThermCamera::setFrameFormat(int frameFormat)
 {
     std::lock_guard<decltype(m_mut)> lock{m_mut};
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::setFrameFormat(%d)", frameFormat);
-    #endif
+#endif
     if (frameFormat != m_frameFormat)
     {
         switch (frameFormat)
@@ -88,17 +89,17 @@ void EchoThermCamera::setFrameFormat(int frameFormat)
             break;
         }
     }
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::setFrameFormat(%d)", frameFormat);
-    #endif
+#endif
 }
 
 void EchoThermCamera::setColorPalette(int colorPalette)
 {
     std::lock_guard<decltype(m_mut)> lock{m_mut};
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::setColorPalette(%d)", colorPalette);
-    #endif
+#endif
     if (colorPalette != m_colorPalette)
     {
         std::string colorPaletteName;
@@ -142,17 +143,17 @@ void EchoThermCamera::setColorPalette(int colorPalette)
         }
         }
     }
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::setColorPalette(%d)", colorPalette);
-    #endif
+#endif
 }
 
 void EchoThermCamera::setShutterMode(int shutterMode)
 {
     std::unique_lock<decltype(m_mut)> lock{m_mut};
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::setShutterMode(%d)", shutterMode);
-    #endif
+#endif
     if (m_shutterMode != shutterMode)
     {
         auto const newShutterMode = m_shutterMode = shutterMode;
@@ -199,16 +200,16 @@ void EchoThermCamera::setShutterMode(int shutterMode)
             }
         }
     }
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::setShutterMode(%d)", shutterMode);
-    #endif
+#endif
 }
 
 void EchoThermCamera::_updateFilterHelper(int filterType, int filterState)
 {
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::_updateFilterHelper(%d, %d)", filterType, filterState);
-    #endif
+#endif
     auto result = SEEKCAMERA_SUCCESS;
     if (mp_camera)
     {
@@ -222,17 +223,17 @@ void EchoThermCamera::_updateFilterHelper(int filterType, int filterState)
     {
         syslog(LOG_ERR, "Failed to update filter state to %s: %s.", seekcamera_get_filter_state_str((seekcamera_filter_t)filterType, (seekcamera_filter_state_t)filterState), seekcamera_error_get_str(result));
     }
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::_updateFilterHelper(%d, %d)", filterType, filterState);
-    #endif
+#endif
 }
 
 void EchoThermCamera::setSharpenFilter(int sharpenFilterMode)
 {
     std::lock_guard<decltype(m_mut)> lock{m_mut};
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::setSharpenFilter(%d)", sharpenFilterMode);
-    #endif
+#endif
     if (m_sharpenFilterMode != sharpenFilterMode)
     {
         if (sharpenFilterMode != (int)SEEKCAMERA_FILTER_STATE_DISABLED)
@@ -242,17 +243,17 @@ void EchoThermCamera::setSharpenFilter(int sharpenFilterMode)
         m_sharpenFilterMode = sharpenFilterMode;
         _updateFilterHelper(SEEKCAMERA_FILTER_SHARPEN_CORRECTION, m_sharpenFilterMode);
     }
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::setSharpenFilter(%d)", sharpenFilterMode);
-    #endif
+#endif
 }
 
 void EchoThermCamera::setFlatSceneFilter(int flatSceneFilterMode)
 {
     std::lock_guard<decltype(m_mut)> lock{m_mut};
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::setFlatSceneFilter(%d)", flatSceneFilterMode);
-    #endif
+#endif
     if (m_flatSceneFilterMode != flatSceneFilterMode)
     {
         if (flatSceneFilterMode != (int)SEEKCAMERA_FILTER_STATE_DISABLED)
@@ -262,17 +263,17 @@ void EchoThermCamera::setFlatSceneFilter(int flatSceneFilterMode)
         m_flatSceneFilterMode = flatSceneFilterMode;
         _updateFilterHelper(SEEKCAMERA_FILTER_FLAT_SCENE_CORRECTION, m_flatSceneFilterMode);
     }
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::setFlatSceneFilter(%d)", flatSceneFilterMode);
-    #endif
+#endif
 }
 
 void EchoThermCamera::setGradientFilter(int gradientFilterMode)
 {
     std::lock_guard<decltype(m_mut)> lock{m_mut};
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::setGradientFilter(%d)", gradientFilterMode);
-    #endif
+#endif
     if (m_gradientFilterMode != gradientFilterMode)
     {
         if (gradientFilterMode != (int)SEEKCAMERA_FILTER_STATE_DISABLED)
@@ -282,17 +283,17 @@ void EchoThermCamera::setGradientFilter(int gradientFilterMode)
         m_gradientFilterMode = gradientFilterMode;
         _updateFilterHelper(SEEKCAMERA_FILTER_GRADIENT_CORRECTION, m_gradientFilterMode);
     }
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::setGradientFilter(%d)", gradientFilterMode);
-    #endif
+#endif
 }
 
 void EchoThermCamera::setPipelineMode(int pipelineMode)
 {
     std::lock_guard<decltype(m_mut)> lock{m_mut};
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::setPipelineMode(%d)", pipelineMode);
-    #endif
+#endif
     if (m_pipelineMode != pipelineMode)
     {
         switch (pipelineMode)
@@ -378,17 +379,17 @@ void EchoThermCamera::setPipelineMode(int pipelineMode)
         }
         }
     }
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::setPipelineMode(%d)", pipelineMode);
-    #endif
+#endif
 }
 
 void EchoThermCamera::triggerShutter()
 {
     std::lock_guard<decltype(m_mut)> lock{m_mut};
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::triggerShutter()");
-    #endif
+#endif
     if (mp_camera)
     {
         auto const result = seekcamera_shutter_trigger((seekcamera_t *)mp_camera);
@@ -405,17 +406,17 @@ void EchoThermCamera::triggerShutter()
     {
         syslog(LOG_ERR, "Cannot trigger shutter because no capture session is active.");
     }
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::triggerShutter()");
-    #endif
+#endif
 }
 
 bool EchoThermCamera::start()
 {
     std::lock_guard<decltype(m_mut)> lock{m_mut};
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::start()");
-    #endif
+#endif
     stop();
     bool returnVal = true;
     auto status = seekcamera_manager_create((seekcamera_manager_t **)&mp_cameraManager, SEEKCAMERA_IO_TYPE_USB);
@@ -471,18 +472,18 @@ bool EchoThermCamera::start()
         returnVal = false;
         syslog(LOG_ERR, "Failed to create camera manager: %s.", seekcamera_error_get_str(status));
     }
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::start()");
-    #endif
+#endif
     return returnVal;
 }
 
 void EchoThermCamera::stop()
 {
     std::lock_guard<decltype(m_mut)> lock{m_mut};
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::stop()");
-    #endif
+#endif
     _closeSession();
     if (mp_cameraManager)
     {
@@ -490,29 +491,50 @@ void EchoThermCamera::stop()
         mp_cameraManager = nullptr;
     }
     m_chipId.clear();
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::stop()");
-    #endif
+#endif
+}
+
+std::string EchoThermCamera::getStatus() const
+{
+    std::lock_guard<decltype(m_mut)> lock{m_mut};
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "ENTER EchoThermCamera::getStatus()");
+#endif
+    std::string statusStr;
+    if(mp_camera && seekcamera_is_active((seekcamera_t*)mp_camera))
+    {
+        statusStr="echotherm camera connected";
+    }
+    else
+    {
+        statusStr="waiting for echotherm camera";
+    }
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "EXIT  EchoThermCamera::getStatus() with %s", statusStr.c_str());
+#endif
+    return statusStr;
 }
 
 void EchoThermCamera::_connect(void *p_camera)
 {
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::_connect()");
-    #endif
+#endif
     _closeSession();
     mp_camera = p_camera;
     _openSession(false);
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::_connect()");
-    #endif
+#endif
 }
 
 void EchoThermCamera::_handleReadyToPair(void *p_camera)
 {
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::_handleReadyToPair()");
-    #endif
+#endif
     // Attempt to pair the camera automatically.
     // Pairing refers to the process by which the sensor is associated with the host and the embedded processor.
     auto const status = seekcamera_store_calibration_data((seekcamera_t *)p_camera, nullptr, nullptr, nullptr);
@@ -522,16 +544,16 @@ void EchoThermCamera::_handleReadyToPair(void *p_camera)
     }
     // Start imaging.
     _connect(p_camera);
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::_handleReadyToPair()");
-    #endif
+#endif
 }
 
 void EchoThermCamera::_closeSession()
 {
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::_closeSession()");
-    #endif
+#endif
     _stopShutterClickThread();
     seekcamera_error_t status = SEEKCAMERA_SUCCESS;
     if (mp_camera)
@@ -550,16 +572,16 @@ void EchoThermCamera::_closeSession()
         close(m_loopbackDevice);
         m_loopbackDevice = -1;
     }
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::_closeSession()");
-    #endif
+#endif
 }
 
 void EchoThermCamera::_openSession(bool reconnect)
 {
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::_openSession(%d)", reconnect);
-    #endif
+#endif
     // Register a frame available callback function.
     auto status = SEEKCAMERA_SUCCESS;
     if (!reconnect)
@@ -649,16 +671,16 @@ void EchoThermCamera::_openSession(bool reconnect)
         syslog(LOG_ERR, "Failed to register frame callback: %s.", seekcamera_error_get_str(status));
     }
     _startShutterClickThread();
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::_openSession(%d)", reconnect);
-    #endif
+#endif
 }
 
 void EchoThermCamera::_openDevice(int width, int height)
 {
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::_openDevice(%d, %d)", width, height);
-    #endif
+#endif
     // TODO find a way to detect the format automatically
     m_loopbackDevice = open(m_loopbackDeviceName.c_str(), O_RDWR);
     if (m_loopbackDevice < 0)
@@ -724,16 +746,16 @@ void EchoThermCamera::_openDevice(int width, int height)
             }
         }
     }
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::_openDevice(%d, %d)", width, height);
-    #endif
+#endif
 }
 
 void EchoThermCamera::_startShutterClickThread()
 {
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::_startShutterClickThread()");
-    #endif
+#endif
     if (m_shutterMode > 0)
     {
         m_shutterClickThreadRunning = true;
@@ -758,23 +780,23 @@ void EchoThermCamera::_startShutterClickThread()
                                                    }
                                                } });
     }
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::_startShutterClickThread()");
-    #endif
+#endif
 }
 
 void EchoThermCamera::_stopShutterClickThread()
 {
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::_stopShutterClickThread()");
-    #endif
+#endif
     m_shutterClickThreadRunning = false;
     m_shutterClickCondition.notify_one();
     if (m_shutterClickThread.joinable())
     {
         m_shutterClickThread.join();
     }
-    #ifdef DEBUG
+#ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::_stopShutterClickThread()");
-    #endif
+#endif
 }

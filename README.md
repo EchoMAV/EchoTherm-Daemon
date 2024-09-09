@@ -120,6 +120,7 @@ echotherm --colorPalette 1 --shutterMode 0
 ```
   --help                    Produce this message
   --shutter                 Trigger the shutter
+  --status                  Get the status of the camera
   --colorPalette arg        Choose the color palette
                             COLOR_PALETTE_WHITE_HOT =  0
                             COLOR_PALETTE_BLACK_HOT =  1

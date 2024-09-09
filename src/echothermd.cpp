@@ -193,9 +193,10 @@ namespace
         return returnCode;
     }
 
-    void _parseCommand(char const *const p_command)
+    std::string _parseCommand(char const *const p_command)
     {
         // Tokenize the command string
+        std::string response="";
         if (auto const *p_token = strtok(const_cast<char *>(p_command), " "); p_token)
         {
             // Check for specific commands and extract numbers
@@ -203,6 +204,11 @@ namespace
             {
                 syslog(LOG_NOTICE, "SHUTTER");
                 np_camera->triggerShutter();
+            }
+            else if (strcmp(p_token, "STATUS") == 0)
+            {
+                syslog(LOG_NOTICE, "STATUS");
+                response=np_camera->getStatus();
             }
             else if (strcmp(p_token, "PALETTE") == 0)
             {
@@ -398,6 +404,7 @@ namespace
                 syslog(LOG_ERR, "Unknown command: %s", p_token);
             }
         }
+        return response;
     }
 
     bool _setNonBlocking(int const socketFileDescriptor)
@@ -441,7 +448,12 @@ namespace
                 }
                 for (int commandIndex = 0; commandIndex < commandCount; ++commandIndex)
                 {
-                    _parseCommand(p_commands[commandIndex]);
+                    std::string const response=_parseCommand(p_commands[commandIndex]);
+                    if(!response.empty())
+                    {
+                        char const*const p_response=response.c_str();
+                        send(clientFileDescriptor, p_response, strlen(p_response), 0);
+                    }
                 }
             } while (false);
             if (p_input)

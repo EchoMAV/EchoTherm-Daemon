@@ -7,6 +7,31 @@ namespace
 {
     constexpr static inline auto const n_port = 9182;
 
+    std::string _getStatus(int const socketFileDescriptor)
+    {
+        std::string statusStr;
+        std::string const commandStr = "STATUS|";
+        auto const numSent = write(socketFileDescriptor, commandStr.c_str(), commandStr.length());
+        if (numSent < 0)
+        {
+            statusStr = "Error sending status request";
+        }
+        else
+        {
+            char p_buffer[256] = {0};
+            auto const numRead = read(socketFileDescriptor, p_buffer, 255);
+            if (numRead < 0)
+            {
+                statusStr = "Error receiving status response";
+            }
+            else
+            {
+                statusStr = std::string(p_buffer);
+            }
+        }
+        return statusStr;
+    }
+
     bool _openSocket(int *p_socketFileDescriptor)
     {
         bool returnVal = true;
@@ -74,6 +99,10 @@ namespace
             std::cout << "Sent command to change loopback device name to " << parameterStr << std::endl;
         }
 #endif
+        if (vm.count("status"))
+        {
+            std::cout << _getStatus(socketFileDescriptor) << std::endl;
+        }
         if (vm.count("colorPalette"))
         {
             std::string const parameterStr = vm["colorPalette"].as<std::string>();
@@ -131,16 +160,10 @@ int main(int argc, char *argv[])
     int socketFileDescriptor = -1;
     do
     {
-        if (system("pgrep echothermd > /dev/null 2>&1"))
-        {
-            std::cerr << "Error, the EchoTherm daemon is not running, please start it first with echothermd." << std::endl;
-            returnCode = EXIT_FAILURE;
-            break;
-        }
         boost::program_options::options_description desc("Allowed options");
         desc.add_options()("help", "Produce this message");
         desc.add_options()("shutter", "Trigger the shutter");
-
+        desc.add_options()("status", "Get the status of the camera");
         desc.add_options()("colorPalette", boost::program_options::value<std::string>(),
                            "Choose the color palette\n"
                            "COLOR_PALETTE_WHITE_HOT =  0\n"
@@ -203,6 +226,20 @@ int main(int argc, char *argv[])
         {
             std::cout << desc << std::endl;
             returnCode = EXIT_SUCCESS;
+            break;
+        }
+        if (system("pgrep echothermd > /dev/null 2>&1"))
+        {
+            if (vm.count("status"))
+            {
+                std::cout << "echothermd not running" << std::endl;
+                returnCode = EXIT_SUCCESS;
+            }
+            else
+            {
+                std::cerr << "Error, the EchoTherm daemon is not running, please start it first with echothermd." << std::endl;
+                returnCode = EXIT_FAILURE;
+            }
             break;
         }
         if (!_openSocket(&socketFileDescriptor))
