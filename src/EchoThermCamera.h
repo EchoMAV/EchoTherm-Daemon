@@ -95,7 +95,7 @@ private:
     void *mp_camera;
     void *mp_cameraManager;
     int m_loopbackDevice;
-    std::recursive_mutex m_mut;
+    mutable std::recursive_mutex m_mut;
     std::thread m_shutterClickThread;
     std::condition_variable_any m_shutterClickCondition;
     std::atomic_bool m_shutterClickThreadRunning;
