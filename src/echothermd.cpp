@@ -32,6 +32,18 @@ namespace
     constexpr static inline auto const n_maxEpollEvents = 10;
     volatile bool n_running = true;
 
+    constexpr static inline int np_catchTheseSignals[]
+    {
+        SIGABRT,
+        SIGFPE,
+        SIGILL,
+        SIGINT,
+        SIGQUIT,
+        SIGSEGV,
+        SIGTERM,
+        SIGTSTP,
+    };
+
     std::unique_ptr<EchoThermCamera> np_camera;
 
     std::errc _parseInt(std::string str, int *p_int)
@@ -62,7 +74,7 @@ namespace
 
     void _handleTerminationSignal(int signal)
     {
-        syslog(LOG_NOTICE, "Received SIGTERM, shutting down daemon...");
+        syslog(LOG_NOTICE, "Received killing signal %d, shutting down daemon...", signal);
         remove(np_lockFile);
         closelog();
         n_running = false;
@@ -71,16 +83,20 @@ namespace
     bool _setTerminationSignalAction()
     {
         auto returnVal = true;
-        struct sigaction signalAction
+        for(auto signal : np_catchTheseSignals)
         {
-        };
-        std::memset(&signalAction, 0, sizeof(signalAction));
-        signalAction.sa_handler = _handleTerminationSignal;
-        sigemptyset(&signalAction.sa_mask);
-        if (sigaction(SIGTERM, &signalAction, nullptr) == -1)
-        {
-            syslog(LOG_ERR, "sigaction failed: %m");
-            returnVal = false;
+            struct sigaction signalAction
+            {
+            };
+            std::memset(&signalAction, 0, sizeof(signalAction));
+            signalAction.sa_handler = _handleTerminationSignal;
+            sigemptyset(&signalAction.sa_mask);
+            if (sigaction(signal, &signalAction, nullptr) == -1)
+            {
+                syslog(LOG_ERR, "sigaction failed for signal %d: %m", signal);
+                returnVal = false;
+                break;
+            }
         }
         return returnVal;
     }
