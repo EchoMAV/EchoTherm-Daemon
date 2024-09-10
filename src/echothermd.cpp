@@ -31,6 +31,7 @@ namespace
     constexpr static inline auto const n_port = 9182;
     constexpr static inline auto const n_maxEpollEvents = 10;
     volatile bool n_running = true;
+    bool n_isDaemon=false;
 
     constexpr static inline int np_catchTheseSignals[]
     {
@@ -641,6 +642,7 @@ int main(int argc, char *argv[])
             returnCode = EXIT_SUCCESS;
             break;
         }
+        n_isDaemon=(bool)vm.count("daemon");
         if (vm.count("kill"))
         {
             syslog(LOG_NOTICE, "Killing the existing instance...\nPlease run echothermd again if you wish to restart the daemon.");
@@ -655,7 +657,11 @@ int main(int argc, char *argv[])
         // Check that another instance isn't already running by checking for a lock file
         if (!_checkLock())
         {
-            syslog(LOG_ERR, "Error: another instance of the program is already running.\nTo shutdown, run echothermd --kill");
+            if(!n_isDaemon)
+            {
+                std::cerr<<"Error: another instance of the program is already running OR the /tmp/echothermd.lock is still in place from a previous call to a non-daemon process of echothermd. .\nTo fix this, run echothermd --kill"<<std::endl;
+            }
+            syslog(LOG_ERR, "Error: another instance of the program is already running OR the /tmp/echothermd.lock is still in place from a previous call to a non-daemon process of echothermd. .\nTo fix this, run echothermd --kill");
             returnCode = EXIT_FAILURE;
             break;
         }
@@ -665,7 +671,7 @@ int main(int argc, char *argv[])
             returnCode = EXIT_FAILURE;
             break;
         }
-        if(vm.count("daemon") && (returnCode = _startDaemon()) >= 0)
+        if(n_isDaemon && (returnCode = _startDaemon()) >= 0)
         {
             // either something went wrong or this is the parent process
             break;
