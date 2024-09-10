@@ -59,6 +59,7 @@ echothermd --colorPalette 7 --shutterMode 0
 The full list of available startup options:
 ```
   --help                    Produce this message
+  --daemon                  Start the process as a daemon
   --kill                    Kill the existing instance
   --loopbackDeviceName arg  Choose the initial loopback device name (default=/dev/video0 if available on the system)
   --colorPalette arg        Choose the initial color palette

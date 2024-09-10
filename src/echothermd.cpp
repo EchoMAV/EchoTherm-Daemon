@@ -562,6 +562,7 @@ int main(int argc, char *argv[])
         }
         boost::program_options::options_description desc("Allowed options");
         desc.add_options()("help", "Produce this message");
+        desc.add_options()("daemon", "Start the process as a daemon");
         desc.add_options()("kill", "Kill the existing instance");
         desc.add_options()("loopbackDeviceName", boost::program_options::value<std::string>(),
                            "Choose the initial loopback device name");
@@ -648,7 +649,7 @@ int main(int argc, char *argv[])
             returnCode = EXIT_FAILURE;
             break;
         }
-        if ((returnCode = _startDaemon()) >= 0)
+        if(vm.count("daemon") && (returnCode = _startDaemon()) >= 0)
         {
             // either something went wrong or this is the parent process
             break;
