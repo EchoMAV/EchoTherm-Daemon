@@ -34,14 +34,14 @@ namespace
 
     constexpr static inline int np_catchTheseSignals[]
     {
-        SIGABRT,
-        SIGFPE,
-        SIGILL,
+        //SIGABRT,
+        //SIGFPE,
+        //SIGILL,
         SIGINT,
-        SIGQUIT,
-        SIGSEGV,
+        //SIGQUIT,
+        //SIGSEGV,
         SIGTERM,
-        SIGTSTP,
+        //SIGTSTP,
     };
 
     std::unique_ptr<EchoThermCamera> np_camera;
