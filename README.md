@@ -109,6 +109,9 @@ The full list of available startup options:
                             non-zero = enabled
 ```
 
+> [!NOTE]  
+> If you run `echothermd` without `--daemon` and terminate the program with `Ctrl+C`, then you should run `echotermd --kill` afterwards to clean up the `/tmp/echothermd.lock` file
+
 ## EchoTherm App 
 
 The `echotherm` application is how the user can interact with the camera while it is running. This allows runtime changes including color palette, shutter modes and other options shown below. The `echotherm` app communicates with `echothermd` using a socket on port 9182. 
