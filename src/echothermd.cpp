@@ -37,7 +37,7 @@ namespace
         //SIGABRT,
         //SIGFPE,
         //SIGILL,
-        SIGINT,
+        //SIGINT,
         //SIGQUIT,
         //SIGSEGV,
         SIGTERM,
