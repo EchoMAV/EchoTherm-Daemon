@@ -167,9 +167,9 @@ To identify the EchoTherm V4L Loopback device:
 v4l2-ctl --list-devices  #find the device named EchoTherm: Video Loopback
 ```
 ### Using with Gstreamer
-The example below ingests the V4L source into a gstreamer pipeline and streams it to an IP address (RTP UDP) using the v4l2h264enc encoder element. The pipeline below was tested on a Raspberry Pi 4. Other embeddded systems may have other hardware optimized encoders, or other software encoders. The fields `{Device id}`, `{IP Address}` and `{Port}` should be changed for your use case. The bitrate below is shown at 2000 kbps (2000000 bps), and can also be changed for your use case.
+The example below ingests the V4L source into a gstreamer pipeline and streams it to an IP address (RTP UDP) using the x264enc encoder element. This encoding is compatible with common UAV Ground Control Software packages. The pipeline below was tested on a Raspberry Pi 4 for stability. Other devices may have hardware-optimized encoders, or other software encoders which will also work. The fields `{Device id}`, `{IP Address}`, `{Port}` and `{Bitrate}' should be changed for your use case. Typical bitrates are 500-1500 kbps, and can also be changed for your use case. Generally, you can use a low bitrate (500-1000 Kbps) with excellent results because of the small 320x256 frame size.
 ```
-gst-launch-1.0 v4l2src device={Device id} io-mode=mmap ! "video/x-raw,format=(string)I420,width=(int)320,height=(int)256,framerate=(fraction)27/1" ! v4l2h264enc extra-controls="controls,video_bitrate=2000000" ! "video/x-h264,level=(string)4.2" ! rtph264pay config-interval=1 pt=96 ! udpsink host={IP Address} port={Port} sync=false
+gst-launch-1.0 v4l2src device={Device id} ! videoconvert ! x264enc tune=zerolatency speed-preset=ultrafast bitrate={Bitrate in Kbps} ! rtph264pay config-interval=1 pt=96 ! udpsink host={IP ADddress} port={Port} sync=false
 ```
 
 ## Uninstall
