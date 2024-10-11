@@ -10,7 +10,7 @@ The EchoTherm software package consists of three major components:
 Each component is described below.  
 
 > [!NOTE]  
-> The installation is tested on Ubuntu 22.04+ and Raspian Pi OS (Bookworm)
+> The installation is tested on Ubuntu 22.04+ and Raspian Pi OS (Bookworm), other Linux distributions may present build issues.
 
 ## Installation
 To build and install, first clone this repository, then run the install script:
