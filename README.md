@@ -9,7 +9,10 @@ The EchoTherm software package consists of three major components:
 
 Each component is described below.  
 
-### Installation
+> [!NOTE]  
+> The installation is tested on Ubuntu 22.04+ and Raspian Pi OS (Bookworm)
+
+## Installation
 To build and install, first clone this repository, then run the install script:
 ```
 git clone https://github.com/EchoMAV/EchoTherm-Daemon.git
@@ -19,15 +22,41 @@ sudo ./install.sh
 > [!IMPORTANT]  
 > The installation script will place `echothermd` and `echotherm` in `/usr/local/bin`.
 
+## Quick Start
+1. Install the software per the instructions above
+1. Reboot you machine, do not you plug in the EchoTherm camera
+2. Run the echotherm deamon
+```
+echothermd --daemon #to start the camera monitoring process in the background
+```
+3. Plug in the EchoTherm camera via USB
+4. Verify the camera is detected
+```
+echotherm --status
+```
+5. List your V4L devices to identify the camera endpoin
+```
+v4l2-ctl --list-devices  
+```
+Take note of the device endpoint (e.g. `/dev/video0`) and use it in the next step {Device id}. Depending on your machine the device may be called `Dummy video device` or `EchoTherm Loopback device`
+6. View the video on your desktop
+```
+gst-launch-1.0 v4l2src device={Device id} ! videoconvert ! autovideosink
+```
+7. In another terminal window, use `echotherm` app to change the settings
+```
+echotherm --colorPalette 4
+```
+
 ## EchoTherm Daemon
 
 EchoTherm Daemon `echothermd` must be started before the EchoTherm camera can be used. This background process (daemon) runs continuously, manages camera connects and disconnects, and inteprepts and implements commands coming from the user application `echotherm`. It also sends video camera frames (YUY2 pixel format by default) to the Video4Linux loopback device so that the EchoTherm colorized video output can easily be ingested by common media frameworks such as [gstreamer](https://gstreamer.freedesktop.org/) and [ffmpeg](https://www.ffmpeg.org/).  
 
 To start the echotherm daemon:
 ```
-echothermd
+echothermd --daemon
 ```
-Running `echothermd` will fork a background process. Because it is a background process, log information will not be avilable on the console, however log data will be written to the system log which can be viewed using either the system journal (journalctl) or at /var/log/syslog, depending if your system is journal-based or not. Journal-based systems are the most modern/common. See the instructions below for how to view the `echothermd` logs.
+Running `echothermd` with the `--daemon` argument will fork a background process. Because it is a background process, log information will not be avilable on the console, however log data will be written to the system log which can be viewed using either the system journal (journalctl) or at /var/log/syslog, depending if your system is journal-based or not. Journal-based systems are the most modern/common. See the instructions below for how to view the `echothermd` logs.
 
 For journal-based OS (most common), to view `echothermd` journal logs use:
 ```
@@ -54,13 +83,13 @@ echothermd --kill
 
 Below is an example `echothermd` command to startup the EchoTherm Daemon and set the initial Color Palette to **Hi** and the Shutter Mode to **Auto**:
 ```
-echothermd --colorPalette 7 --shutterMode 0
+echothermd --daemon --colorPalette 7 --shutterMode 0
 ```
 The full list of available startup options:
 ```
   --help                    Produce this message
-  --daemon                  Start the process as a daemon
-  --kill                    Kill the existing instance
+  --daemon                  Start the process as a daemon (most often used)
+  --kill                    Kill the running background (daemon) instance
   --loopbackDeviceName arg  Choose the initial loopback device name (default=/dev/video0 if available on the system)
   --colorPalette arg        Choose the initial color palette
                             COLOR_PALETTE_WHITE_HOT =  0 (default)
@@ -167,6 +196,14 @@ To identify the EchoTherm V4L Loopback device:
 v4l2-ctl --list-devices  #find the device named EchoTherm: Video Loopback
 ```
 ### Using with Gstreamer
+
+#### Example 1
+The example below ingests the V4L source and displays it in a desktop window
+```
+gst-launch-1.0 v4l2src device={Device id} ! videoconvert ! autovideosink
+```
+
+#### Example 2
 The example below ingests the V4L source into a gstreamer pipeline and streams it to an IP address (RTP UDP) using the x264enc encoder element. This encoding is compatible with common UAV Ground Control Software packages. The pipeline below was tested on a Raspberry Pi 4 for stability. Other devices may have hardware-optimized encoders, or other software encoders which will also work. The fields `{Device id}`, `{IP Address}`, `{Port}` and `{Bitrate}' should be changed for your use case. Typical bitrates are 500-1500 kbps, and can also be changed for your use case. Generally, you can use a low bitrate (500-1000 Kbps) with excellent results because of the small 320x256 frame size.
 ```
 gst-launch-1.0 v4l2src device={Device id} ! videoconvert ! x264enc tune=zerolatency speed-preset=ultrafast bitrate={Bitrate in Kbps} ! rtph264pay config-interval=1 pt=96 ! udpsink host={IP ADddress} port={Port} sync=false
