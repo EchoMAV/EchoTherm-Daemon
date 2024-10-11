@@ -38,7 +38,7 @@ echotherm --status
 ```
 v4l2-ctl --list-devices  
 ```
-Take note of the device endpoint (e.g. `/dev/video0`) and use it in the next step as {Device id}. Depending on your machine setup, the device may be called `Dummy video device` or `EchoTherm Loopback device`
+Take note of the device endpoint (e.g. `/dev/video0`) and use it in the next step as {Device id}. Depending on your machine setup, the device may be called `Dummy video device` or `EchoTherm Loopback device`  
 6. View the video on your desktop:
 ```
 gst-launch-1.0 v4l2src device={Device id} ! videoconvert ! autovideosink
