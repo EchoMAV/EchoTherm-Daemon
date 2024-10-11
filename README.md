@@ -23,30 +23,31 @@ sudo ./install.sh
 > The installation script will place `echothermd` and `echotherm` in `/usr/local/bin`.
 
 ## Quick Start
-1. Install the software per the instructions above
-1. Reboot you machine, do not you plug in the EchoTherm camera
-2. Run the echotherm deamon
+1. Install the software per the instructions above.
+1. Reboot you machine, do not you plug in the EchoTherm camera.
+2. Run the echotherm daemon:
 ```
-echothermd --daemon #to start the camera monitoring process in the background
+echothermd --daemon
 ```
 3. Plug in the EchoTherm camera via USB
-4. Verify the camera is detected
+4. Verify the camera is detected via:
 ```
 echotherm --status
 ```
-5. List your V4L devices to identify the camera endpoin
+5. List your VideoForLinux devices to identify the camera endpoint:
 ```
 v4l2-ctl --list-devices  
 ```
-Take note of the device endpoint (e.g. `/dev/video0`) and use it in the next step {Device id}. Depending on your machine the device may be called `Dummy video device` or `EchoTherm Loopback device`
-6. View the video on your desktop
+Take note of the device endpoint (e.g. `/dev/video0`) and use it in the next step as {Device id}. Depending on your machine setup, the device may be called `Dummy video device` or `EchoTherm Loopback device`
+6. View the video on your desktop:
 ```
 gst-launch-1.0 v4l2src device={Device id} ! videoconvert ! autovideosink
 ```
-7. In another terminal window, use `echotherm` app to change the settings
+7. In another terminal window, use `echotherm` app to change the settings:
 ```
 echotherm --colorPalette 4
 ```
+Congrats! You now have a functional camera. Continue reading to learn more details about the echothermd and echotherm apps and other gstreamer implementations for headless/streaming applications.
 
 ## EchoTherm Daemon
 
