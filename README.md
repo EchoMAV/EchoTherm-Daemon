@@ -9,8 +9,7 @@ The EchoTherm software package consists of three major components:
 
 Each component is described below.  
 
-> [!NOTE]  
-> The installation is tested on Ubuntu 22.04+ and Raspian Pi OS (Bookworm), other Linux distributions may present build issues.
+
 
 ## Installation
 To build and install, first clone this repository, then run the install script:
@@ -38,7 +37,8 @@ echotherm --status
 ```
 v4l2-ctl --list-devices  
 ```
-Take note of the device endpoint (e.g. `/dev/video0`) and use it in the next step as {Device id}. Depending on your machine setup, the device may be called `Dummy video device` or `EchoTherm Loopback device`  
+> [!NOTE]  
+> Take note of the device endpoint (e.g. `/dev/video0`) and use it in the next step as {Device id}. Depending on your machine setup, the device may be called >`Dummy video device` or `EchoTherm Loopback device`  
 6. View the video on your desktop:
 ```
 gst-launch-1.0 v4l2src device={Device id} ! videoconvert ! autovideosink
