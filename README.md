@@ -43,7 +43,7 @@ v4l2-ctl --list-devices
 ```
 gst-launch-1.0 v4l2src device={Device id} ! videoconvert ! autovideosink
 ```
-7. In another terminal window, use `echotherm` app to change the settings:
+7. In another terminal window, use the `echotherm` app to change camera settings, e.g. to change the color palette:
 ```
 echotherm --colorPalette 4
 ```
