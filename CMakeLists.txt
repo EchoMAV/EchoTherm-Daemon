@@ -6,6 +6,9 @@ project(echothermd DESCRIPTION "EchoTherm Daemon")
 
 
 find_package(Boost REQUIRED COMPONENTS system program_options CONFIG) 
+find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
+
 
 #--------------------------------------------------------------------------------------------------------------------------#
 #Executable configuration
@@ -23,6 +26,7 @@ target_link_libraries(${PROJECT_NAME}
 	seekcamera
 	Boost::system
 	Boost::program_options
+	${OpenCV_LIBS}
 )
 
 include(CMakePrintHelpers)

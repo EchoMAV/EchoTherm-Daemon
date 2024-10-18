@@ -7,6 +7,31 @@ namespace
 {
     constexpr static inline auto const n_port = 9182;
 
+    std::string _getZoom(int const socketFileDescriptor)
+    {
+        std::string zoomRateStr;
+        std::string const commandStr = "GETZOOM|";
+        auto const numSent = write(socketFileDescriptor, commandStr.c_str(), commandStr.length());
+        if (numSent < 0)
+        {
+            zoomRateStr = "Error sending status request";
+        }
+        else
+        {
+            char p_buffer[256] = {0};
+            auto const numRead = read(socketFileDescriptor, p_buffer, 255);
+            if (numRead < 0)
+            {
+                zoomRateStr = "Error receiving status response";
+            }
+            else
+            {
+                zoomRateStr = std::string(p_buffer);
+            }
+        }
+        return zoomRateStr;
+    }
+
     std::string _getStatus(int const socketFileDescriptor)
     {
         std::string statusStr;
@@ -103,6 +128,31 @@ namespace
         {
             std::cout << _getStatus(socketFileDescriptor) << std::endl;
         }
+        if(vm.count("zoomRate"))
+        {
+            std::string const parameterStr = vm["zoomRate"].as<std::string>();
+            std::string const commandStr = "ZOOMRATE " + parameterStr + '|';
+            send(socketFileDescriptor, commandStr.c_str(), commandStr.length(), 0);
+            std::cout << "Sent command to set zoom rate to " << parameterStr << std::endl;
+        }
+        if(vm.count("maxZoom"))
+        {
+            std::string const parameterStr = vm["maxZoom"].as<std::string>();
+            std::string const commandStr = "MAXZOOM " + parameterStr + '|';
+            send(socketFileDescriptor, commandStr.c_str(), commandStr.length(), 0);
+            std::cout << "Sent command to set max zoom to " << parameterStr << std::endl;
+        }
+        if(vm.count("zoom"))
+        {
+            std::string const parameterStr = vm["zoom"].as<std::string>();
+            std::string const commandStr = "ZOOM " + parameterStr + '|';
+            send(socketFileDescriptor, commandStr.c_str(), commandStr.length(), 0);
+            std::cout << "Sent command to set zoom to " << parameterStr << std::endl;
+        }
+        if(vm.count("getZoom"))
+        {
+            std::cout << _getZoom(socketFileDescriptor) << std::endl;
+        }
         if (vm.count("colorPalette"))
         {
             std::string const parameterStr = vm["colorPalette"].as<std::string>();
@@ -164,6 +214,16 @@ int main(int argc, char *argv[])
         desc.add_options()("help", "Produce this message");
         desc.add_options()("shutter", "Trigger the shutter");
         desc.add_options()("status", "Get the status of the camera");
+        desc.add_options()("zoomRate", boost::program_options::value<std::string>(),
+                           "Choose the zoom rate (a floating point number)\n"
+                           "negative = zooming out\n"
+                           "zero     = not changing zoom\n"
+                           "positive = zooming in");
+        desc.add_options()("zoom", boost::program_options::value<std::string>(),
+                           "Instantly set the current zoom (a floating point number)");
+        desc.add_options()("maxZoom", boost::program_options::value<std::string>(),
+                            "Set the maximum zoom (a floating point number)");
+        desc.add_options()("getZoom", "Get a string indicating current zoom parameters");
         desc.add_options()("colorPalette", boost::program_options::value<std::string>(),
                            "Choose the color palette\n"
                            "COLOR_PALETTE_WHITE_HOT =  0\n"

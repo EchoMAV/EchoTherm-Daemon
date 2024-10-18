@@ -19,11 +19,12 @@ namespace
     constexpr static inline auto const n_defaultlLoopbackDeviceName = "/dev/video0";
     constexpr static inline auto const n_defaultColorPalette = 0;        // COLOR_PALETTE_WHITE_HOT
     constexpr static inline auto const n_defaultShutterMode = 0;         // SHUTTER_MODE_AUTO
-    constexpr static inline auto const n_defaultFrameFormat = 0x400;     // FRAME_FORMAT_COLOR_YUY2
+    constexpr static inline auto const n_defaultFrameFormat = 128;       // FRAME_FORMAT_COLOR_ARGB8888
     constexpr static inline auto const n_defaultSharpenFilterMode = 0;   // DISABLED
     constexpr static inline auto const n_defaultGradientFilterMode = 0;  // DISABLED
     constexpr static inline auto const n_defaultFlatSceneFilterMode = 0; // DISABLED
     constexpr static inline auto const n_defaultPipelineMode = 2;        // PIPELINE_PROCESSED
+    constexpr static inline auto const n_defaultMaxZoom = 16.0;
 
     constexpr static inline auto const n_bufferSize = 1024;
     constexpr static inline auto const np_lockFile = "/tmp/echothermd.lock";
@@ -31,18 +32,17 @@ namespace
     constexpr static inline auto const n_port = 9182;
     constexpr static inline auto const n_maxEpollEvents = 10;
     volatile bool n_running = true;
-    bool n_isDaemon=false;
+    bool n_isDaemon = false;
 
-    constexpr static inline int np_catchTheseSignals[]
-    {
-        //SIGABRT,
-        //SIGFPE,
-        //SIGILL,
-        //SIGINT,
-        //SIGQUIT,
-        //SIGSEGV,
+    constexpr static inline int np_catchTheseSignals[]{
+        // SIGABRT,
+        // SIGFPE,
+        // SIGILL,
+        // SIGINT,
+        // SIGQUIT,
+        // SIGSEGV,
         SIGTERM,
-        //SIGTSTP,
+        // SIGTSTP,
     };
 
     std::unique_ptr<EchoThermCamera> np_camera;
@@ -73,6 +73,15 @@ namespace
         return ec;
     }
 
+    std::errc _parseDouble(std::string str, double *p_double)
+    {
+        // first, trim the string
+        // then try to parse as an double
+        boost::trim(str);
+        auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), *p_double);
+        return ec;
+    }
+
     void _handleTerminationSignal(int signal)
     {
         syslog(LOG_NOTICE, "Received killing signal %d, shutting down daemon...", signal);
@@ -84,7 +93,7 @@ namespace
     bool _setTerminationSignalAction()
     {
         auto returnVal = true;
-        for(auto signal : np_catchTheseSignals)
+        for (auto signal : np_catchTheseSignals)
         {
             struct sigaction signalAction
             {
@@ -213,7 +222,7 @@ namespace
     std::string _parseCommand(char const *const p_command)
     {
         // Tokenize the command string
-        std::string response="";
+        std::string response = "";
         if (auto const *p_token = strtok(const_cast<char *>(p_command), " "); p_token)
         {
             // Check for specific commands and extract numbers
@@ -222,10 +231,115 @@ namespace
                 syslog(LOG_NOTICE, "SHUTTER");
                 np_camera->triggerShutter();
             }
+            else if (strcmp(p_token, "MAXZOOM") == 0)
+            {
+                if ((p_token = strtok(nullptr, " ")) == nullptr)
+                {
+                    syslog(LOG_NOTICE, "MAXZOOM command received, but no number was provided.");
+                }
+                else
+                {
+                    double number = 0.0;
+                    auto errorCode = _parseDouble(p_token, &number);
+                    if (errorCode == std::errc::invalid_argument)
+                    {
+                        syslog(LOG_ERR, "MAXZOOM cannot be set to %s because it is not a number.", p_token);
+                    }
+                    else if (errorCode == std::errc::result_out_of_range)
+                    {
+                        syslog(LOG_ERR, "MAXZOOM cannot be set to %s because it is out of range.", p_token);
+                    }
+                    else
+                    {
+                        syslog(LOG_NOTICE, "MAXZOOM: %f", number);
+                        np_camera->setMaxZoom(number);
+                    }
+                }
+            }
+            else if (strcmp(p_token, "ZOOMRATE") == 0)
+            {
+                if ((p_token = strtok(nullptr, " ")) == nullptr)
+                {
+                    syslog(LOG_NOTICE, "ZOOMRATE command received, but no number was provided.");
+                }
+                else
+                {
+                    double number = 0.0;
+                    auto errorCode = _parseDouble(p_token, &number);
+                    if (errorCode == std::errc::invalid_argument)
+                    {
+                        syslog(LOG_ERR, "ZOOMRATE cannot be set to %s because it is not a number.", p_token);
+                    }
+                    else if (errorCode == std::errc::result_out_of_range)
+                    {
+                        syslog(LOG_ERR, "ZOOMRATE cannot be set to %s because it is out of range.", p_token);
+                    }
+                    else
+                    {
+                        syslog(LOG_NOTICE, "ZOOMRATE: %f", number);
+                        np_camera->setZoomRate(number);
+                    }
+                }
+            }
+            else if (strcmp(p_token, "ZOOM") == 0)
+            {
+                if ((p_token = strtok(nullptr, " ")) == nullptr)
+                {
+                    syslog(LOG_NOTICE, "ZOOM command received, but no number was provided.");
+                }
+                else
+                {
+                    double number = 0.0;
+                    auto errorCode = _parseDouble(p_token, &number);
+                    if (errorCode == std::errc::invalid_argument)
+                    {
+                        syslog(LOG_ERR, "ZOOM cannot be set to %s because it is not a number.", p_token);
+                    }
+                    else if (errorCode == std::errc::result_out_of_range)
+                    {
+                        syslog(LOG_ERR, "ZOOM cannot be set to %s because it is out of range.", p_token);
+                    }
+                    else
+                    {
+                        syslog(LOG_NOTICE, "ZOOM: %f", number);
+                        np_camera->setZoom(number);
+                    }
+                }
+            }
+            else if (strcmp(p_token, "MAXZOOM") == 0)
+            {
+                if ((p_token = strtok(nullptr, " ")) == nullptr)
+                {
+                    syslog(LOG_NOTICE, "MAXZOOM command received, but no number was provided.");
+                }
+                else
+                {
+                    double number = 0.0;
+                    auto errorCode = _parseDouble(p_token, &number);
+                    if (errorCode == std::errc::invalid_argument)
+                    {
+                        syslog(LOG_ERR, "MAXZOOM cannot be set to %s because it is not a number.", p_token);
+                    }
+                    else if (errorCode == std::errc::result_out_of_range)
+                    {
+                        syslog(LOG_ERR, "MAXZOOM cannot be set to %s because it is out of range.", p_token);
+                    }
+                    else
+                    {
+                        syslog(LOG_NOTICE, "MAXZOOM: %f", number);
+                        np_camera->setMaxZoom(number);
+                    }
+                }
+            }
+            else if (strcmp(p_token, "GETZOOM") == 0)
+            {
+                syslog(LOG_NOTICE, "GETZOOM");
+                response = np_camera->getZoom();
+            }
             else if (strcmp(p_token, "STATUS") == 0)
             {
                 syslog(LOG_NOTICE, "STATUS");
-                response=np_camera->getStatus();
+                response = np_camera->getStatus();
             }
             else if (strcmp(p_token, "PALETTE") == 0)
             {
@@ -465,10 +579,10 @@ namespace
                 }
                 for (int commandIndex = 0; commandIndex < commandCount; ++commandIndex)
                 {
-                    std::string const response=_parseCommand(p_commands[commandIndex]);
-                    if(!response.empty())
+                    std::string const response = _parseCommand(p_commands[commandIndex]);
+                    if (!response.empty())
                     {
-                        char const*const p_response=response.c_str();
+                        char const *const p_response = response.c_str();
                         send(clientFileDescriptor, p_response, strlen(p_response), 0);
                     }
                 }
@@ -507,6 +621,7 @@ namespace
         int sharpenFilterMode = n_defaultSharpenFilterMode;
         int gradientFilterMode = n_defaultGradientFilterMode;
         int flatSceneFilterMode = n_defaultFlatSceneFilterMode;
+        double maxZoom = n_defaultMaxZoom;
         if (vm.count("loopbackDeviceName"))
         {
             loopbackDeviceName = vm["loopbackDeviceName"].as<std::string>();
@@ -514,6 +629,10 @@ namespace
         if (vm.count("colorPalette"))
         {
             _parseInt(vm["colorPalette"].as<std::string>(), &colorPalette);
+        }
+        if (vm.count("maxZoom"))
+        {
+            _parseDouble(vm["maxZoom"].as<std::string>(), &maxZoom);
         }
         if (vm.count("shutterMode"))
         {
@@ -541,6 +660,7 @@ namespace
         }
         syslog(LOG_NOTICE, "loopbackDeviceName = %s", loopbackDeviceName.c_str());
         syslog(LOG_NOTICE, "colorPalette = %d", colorPalette);
+        syslog(LOG_NOTICE, "maxZoom = %f", maxZoom);
         syslog(LOG_NOTICE, "shutterMode = %d", shutterMode);
         syslog(LOG_NOTICE, "frameFormat = %d", frameFormat);
         syslog(LOG_NOTICE, "pipelineMode = %d", pipelineMode);
@@ -557,6 +677,7 @@ namespace
         np_camera->setSharpenFilter(sharpenFilterMode);
         np_camera->setGradientFilter(gradientFilterMode);
         np_camera->setFlatSceneFilter(flatSceneFilterMode);
+        np_camera->setMaxZoom(maxZoom);
 
         return np_camera->start();
     }
@@ -581,6 +702,8 @@ int main(int argc, char *argv[])
         desc.add_options()("help", "Produce this message");
         desc.add_options()("daemon", "Start the process as a daemon");
         desc.add_options()("kill", "Kill the existing instance");
+        desc.add_options()("maxZoom", boost::program_options::value<std::string>(),
+                           "Set the maximum zoom (a floating point number)");
         desc.add_options()("loopbackDeviceName", boost::program_options::value<std::string>(),
                            "Choose the initial loopback device name");
         desc.add_options()("colorPalette", boost::program_options::value<std::string>(),
@@ -606,15 +729,15 @@ int main(int argc, char *argv[])
                            "positive = number of seconds between shutter events");
         desc.add_options()("frameFormat", boost::program_options::value<std::string>(),
                            "Choose the initial frame format\n"
-                           "FRAME_FORMAT_CORRECTED               = 0x04\n"
-                           "FRAME_FORMAT_PRE_AGC                 = 0x08\n"
-                           "FRAME_FORMAT_THERMOGRAPHY_FLOAT      = 0x10\n"
-                           "FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6 = 0x20\n"
+                           "FRAME_FORMAT_CORRECTED               = 0x04  (not yet implemented)\n"
+                           "FRAME_FORMAT_PRE_AGC                 = 0x08  (not yet implemented)\n"
+                           "FRAME_FORMAT_THERMOGRAPHY_FLOAT      = 0x10  (not yet implemented)\n"
+                           "FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6 = 0x20  (not yet implemented)\n"
                            "FRAME_FORMAT_GRAYSCALE               = 0x40\n"
-                           "FRAME_FORMAT_COLOR_ARGB8888          = 0x80\n"
+                           "FRAME_FORMAT_COLOR_ARGB8888          = 0x80  (default)\n"
                            "FRAME_FORMAT_COLOR_RGB565            = 0x100\n"
-                           "FRAME_FORMAT_COLOR_AYUV              = 0x200\n"
-                           "FRAME_FORMAT_COLOR_YUY2              = 0x400\n");
+                           "FRAME_FORMAT_COLOR_AYUV              = 0x200 (not yet implemented)\n"
+                           "FRAME_FORMAT_COLOR_YUY2              = 0x400 (not yet implemented)\n");
         desc.add_options()("pipelineMode", boost::program_options::value<std::string>(),
                            "Choose the initial pipeline mode\n"
                            "PIPELINE_LITE       = 0\n"
@@ -638,11 +761,11 @@ int main(int argc, char *argv[])
         boost::program_options::notify(vm);
         if (vm.count("help"))
         {
-            std::cout<<desc<<std::endl;
+            std::cout << desc << std::endl;
             returnCode = EXIT_SUCCESS;
             break;
         }
-        n_isDaemon=(bool)vm.count("daemon");
+        n_isDaemon = (bool)vm.count("daemon");
         if (vm.count("kill"))
         {
             syslog(LOG_NOTICE, "Killing the existing instance...\nPlease run echothermd again if you wish to restart the daemon.");
@@ -652,14 +775,14 @@ int main(int argc, char *argv[])
             returnCode = system("pkill -9 echothermd");
             break;
         }
-        std::cout<<"\nStarting EchoTherm daemon, v1.0.0 ©EchoMAV, LLC 2024\nTo view log output, journalctl -t echothermd\nTo tail log output, journalctl -ft echothermd"<<std::endl;
+        std::cout << "\nStarting EchoTherm daemon, v1.0.0 ©EchoMAV, LLC 2024\nTo view log output, journalctl -t echothermd\nTo tail log output, journalctl -ft echothermd" << std::endl;
         syslog(LOG_NOTICE, "Starting EchoTherm daemon, v1.0.0 ©EchoMAV, LLC 2024");
         // Check that another instance isn't already running by checking for a lock file
         if (!_checkLock())
         {
-            if(!n_isDaemon)
+            if (!n_isDaemon)
             {
-                std::cerr<<"Error: another instance of the program is already running OR the /tmp/echothermd.lock is still in place from a previous call to a non-daemon process of echothermd. .\nTo fix this, run echothermd --kill"<<std::endl;
+                std::cerr << "Error: another instance of the program is already running OR the /tmp/echothermd.lock is still in place from a previous call to a non-daemon process of echothermd. .\nTo fix this, run echothermd --kill" << std::endl;
             }
             syslog(LOG_ERR, "Error: another instance of the program is already running OR the /tmp/echothermd.lock is still in place from a previous call to a non-daemon process of echothermd. .\nTo fix this, run echothermd --kill");
             returnCode = EXIT_FAILURE;
@@ -671,7 +794,7 @@ int main(int argc, char *argv[])
             returnCode = EXIT_FAILURE;
             break;
         }
-        if(n_isDaemon && (returnCode = _startDaemon()) >= 0)
+        if (n_isDaemon && (returnCode = _startDaemon()) >= 0)
         {
             // either something went wrong or this is the parent process
             break;

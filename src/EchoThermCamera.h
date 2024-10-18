@@ -72,6 +72,18 @@ public:
     void stop();
     // Get a string representing the status of the camera
     std::string getStatus() const;
+    // Get a string representing the current zoom status
+    std::string getZoom() const;
+    // Set the zoom rate
+    // 0 = stopped
+    // positive = zooming in
+    // negative = zooming out
+    void setZoomRate(double zoomRate);
+    //Instantly set the zoom
+    void setZoom(double zoom);
+    //set the maximum zoom
+    void setMaxZoom(double maxZoom);
+
 
 private:
     void _updateFilterHelper(int filterType, int filterState);
@@ -82,6 +94,8 @@ private:
     void _openDevice(int width, int height);
     void _startShutterClickThread();
     void _stopShutterClickThread();
+    ssize_t _writeBytes(void* p_frameData, size_t frameDataSize);
+    void _doContinuousZoom();
 
     std::string m_loopbackDeviceName;
     std::string m_chipId;
@@ -95,6 +109,16 @@ private:
     void *mp_camera;
     void *mp_cameraManager;
     int m_loopbackDevice;
+    double m_zoomRate;
+    int m_width;
+    int m_height;
+    int m_roiX;
+    int m_roiY;
+    int m_roiWidth;
+    int m_roiHeight;
+    double m_currentZoom;
+    double m_maxZoom;
+    std::chrono::system_clock::time_point m_lastZoomTime;
     mutable std::recursive_mutex m_mut;
     std::thread m_shutterClickThread;
     std::condition_variable_any m_shutterClickCondition;

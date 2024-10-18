@@ -8,14 +8,21 @@
 #include <sys/ioctl.h>
 #include <cstring>
 #include <sstream>
+#include <opencv2/imgproc.hpp>
 
 // Define the DEBUG macro to enable debug code
 // #define DEBUG
 
+namespace
+{
+    constexpr static inline auto const n_minZoom = 1.0;
+    constexpr static inline auto const n_defaultMaxZoom = 16.0;
+}
+
 EchoThermCamera::EchoThermCamera()
     : m_loopbackDeviceName{},
       m_chipId{},
-      m_frameFormat{int(SEEKCAMERA_FRAME_FORMAT_COLOR_YUY2)},
+      m_frameFormat{int(SEEKCAMERA_FRAME_FORMAT_COLOR_ARGB8888)},
       m_colorPalette{int(SEEKCAMERA_COLOR_PALETTE_WHITE_HOT)},
       m_shutterMode{int(SEEKCAMERA_SHUTTER_MODE_AUTO)},
       m_sharpenFilterMode{int(SEEKCAMERA_FILTER_STATE_DISABLED)},
@@ -25,6 +32,16 @@ EchoThermCamera::EchoThermCamera()
       mp_camera{nullptr},
       mp_cameraManager{nullptr},
       m_loopbackDevice{-1},
+      m_zoomRate{0.0},
+      m_width{0},
+      m_height{0},
+      m_roiX{0},
+      m_roiY{0},
+      m_roiWidth{0},
+      m_roiHeight{0},
+      m_currentZoom{n_minZoom},
+      m_maxZoom{n_defaultMaxZoom},
+      m_lastZoomTime{},
       m_mut{},
       m_shutterClickThread{},
       m_shutterClickCondition{},
@@ -503,18 +520,135 @@ std::string EchoThermCamera::getStatus() const
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::getStatus()");
 #endif
     std::string statusStr;
-    if(mp_camera && seekcamera_is_active((seekcamera_t*)mp_camera))
+    if (mp_camera && seekcamera_is_active((seekcamera_t *)mp_camera))
     {
-        statusStr="echotherm camera connected";
+        statusStr = "echotherm camera connected";
     }
     else
     {
-        statusStr="waiting for echotherm camera";
+        statusStr = "waiting for echotherm camera";
     }
 #ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::getStatus() with %s", statusStr.c_str());
 #endif
     return statusStr;
+}
+
+std::string EchoThermCamera::getZoom() const
+{
+    std::lock_guard<decltype(m_mut)> lock{m_mut};
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "ENTER EchoThermCamera::getZoomRate()");
+#endif
+    std::stringstream ss;
+    ss << "{";
+    ss << "zoom=" << m_currentZoom;
+    ss << ", zoomRate=" << m_zoomRate;
+    ss << ", maxZoom=" << m_maxZoom;
+    ss << ", roiSize={" << m_roiWidth << ", " << m_roiHeight << "}";
+    ss << ", roiOffset={" << m_roiX << ", " << m_roiY << "}";
+    ss << "}";
+    std::string zoomStatus = ss.str();
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "EXIT  EchoThermCamera::getZoomRate() with %s", zoomStatus.c_str());
+#endif
+    return zoomStatus;
+}
+
+void EchoThermCamera::setZoomRate(double zoomRate)
+{
+    std::lock_guard<decltype(m_mut)> lock{m_mut};
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "ENTER EchoThermCamera::setZoomRate(%f)", zoomRate);
+#endif
+    if (zoomRate != zoomRate)
+    {
+        zoomRate = 0;
+    }
+    m_zoomRate = zoomRate;
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "EXIT  EchoThermCamera::setZoomRate(%f)", zoomRate);
+#endif
+}
+
+void EchoThermCamera::setMaxZoom(double maxZoom)
+{
+    std::lock_guard<decltype(m_mut)> lock{m_mut};
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "ENTER EchoThermCamera::setMaxZoom(%f)", maxZoom);
+#endif
+    if (maxZoom != maxZoom || maxZoom < n_minZoom)
+    {
+        maxZoom = n_defaultMaxZoom;
+    }
+    m_maxZoom = maxZoom;
+    if (m_currentZoom > m_maxZoom)
+    {
+        m_currentZoom = m_maxZoom;
+        m_zoomRate = 0;
+        m_roiWidth = std::min<int>(m_width, std::max<int>(1, (int)std::rint(m_width / m_currentZoom)));
+        m_roiHeight = std::min<int>(m_height, std::max<int>(1, (int)std::rint(m_height / m_currentZoom)));
+        m_roiX = (m_width - m_roiWidth) >> 1;
+        m_roiY = (m_height - m_roiHeight) >> 1;
+        if (m_roiWidth >= m_width || m_roiHeight >= m_height || m_currentZoom <= n_minZoom)
+        {
+            m_currentZoom = n_minZoom;
+            m_roiWidth = m_width;
+            m_roiHeight = m_height;
+            m_roiX = 0;
+            m_roiY = 0;
+        }
+        else if (m_roiWidth <= 1 || m_roiHeight <= 1 || m_currentZoom >= m_maxZoom)
+        {
+            m_currentZoom = m_maxZoom;
+        }
+#ifdef DEBUG
+        syslog(LOG_DEBUG, "setMaxZoom m_currentZoom=%f, m_zoomRate=%f, m_roiWidth=%d, m_roiHeight=%d, m_roiX=%d, m_roiY=%d", m_currentZoom, m_zoomRate, m_roiWidth, m_roiHeight, m_roiX, m_roiY);
+#endif
+    }
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "EXIT  EchoThermCamera::setMaxZoom(%f)", maxZoom);
+#endif
+}
+
+void EchoThermCamera::setZoom(double zoom)
+{
+    std::lock_guard<decltype(m_mut)> lock{m_mut};
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "ENTER EchoThermCamera::setZoom(%f)", zoom);
+#endif
+    if (zoom != zoom || zoom < n_minZoom)
+    {
+        zoom = n_minZoom;
+    }
+    else if (zoom > m_maxZoom)
+    {
+        zoom = m_maxZoom;
+    }
+    m_currentZoom = zoom;
+    m_zoomRate = 0;
+    m_roiWidth = std::min<int>(m_width, std::max<int>(1, (int)std::rint(m_width / m_currentZoom)));
+    m_roiHeight = std::min<int>(m_height, std::max<int>(1, (int)std::rint(m_height / m_currentZoom)));
+    m_roiX = (m_width - m_roiWidth) >> 1;
+    m_roiY = (m_height - m_roiHeight) >> 1;
+    if (m_roiWidth >= m_width || m_roiHeight >= m_height || m_currentZoom <= n_minZoom)
+    {
+        m_currentZoom = n_minZoom;
+        m_roiWidth = m_width;
+        m_roiHeight = m_height;
+        m_roiX = 0;
+        m_roiY = 0;
+    }
+    else if (m_roiWidth <= 1 || m_roiHeight <= 1 || m_currentZoom >= m_maxZoom)
+    {
+        m_currentZoom = m_maxZoom;
+    }
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "setZoom m_currentZoom=%f, m_zoomRate=%f, m_roiWidth=%d, m_roiHeight=%d, m_roiX=%d, m_roiY=%d", m_currentZoom, m_zoomRate, m_roiWidth, m_roiHeight, m_roiX, m_roiY);
+#endif
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "EXIT  EchoThermCamera::setZoom(%f)", zoom);
+#endif
 }
 
 void EchoThermCamera::_connect(void *p_camera)
@@ -608,11 +742,12 @@ void EchoThermCamera::_openSession(bool reconnect)
                                                                       {
                                                                           void *const p_frameData = seekframe_get_data(p_frame);
                                                                           size_t const frameDataSize = seekframe_get_data_size(p_frame);
-                                                                          ssize_t written = write(p_this->m_loopbackDevice, p_frameData, frameDataSize);
+                                                                          ssize_t const written = p_this->_writeBytes(p_frameData, frameDataSize);
                                                                           if (written < 0)
                                                                           {
                                                                               syslog(LOG_ERR, "Error writing %zu bytes to v4l2 device %s: %m", frameDataSize, p_this->m_loopbackDeviceName.c_str());
                                                                           }
+                                                                          p_this->_doContinuousZoom();
                                                                       }
                                                                   }
                                                                   else
@@ -702,15 +837,7 @@ void EchoThermCamera::_openDevice(int width, int height)
             v.fmt.pix.height = height;
             switch (m_frameFormat)
             {
-            case SEEKCAMERA_FRAME_FORMAT_COLOR_YUY2:
-                v.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
-                v.fmt.pix.sizeimage = width * height * 2;
-                break;
-            case SEEKCAMERA_FRAME_FORMAT_COLOR_AYUV:
-                // note: probably not supported by gstreamer v4l2src
-                v.fmt.pix.pixelformat = V4L2_PIX_FMT_AYUV32;
-                v.fmt.pix.sizeimage = width * height * 4;
-                break;
+
             case SEEKCAMERA_FRAME_FORMAT_COLOR_RGB565:
                 v.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB565;
                 v.fmt.pix.sizeimage = width * height * 2;
@@ -727,8 +854,17 @@ void EchoThermCamera::_openDevice(int width, int height)
             case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT:
             case SEEKCAMERA_FRAME_FORMAT_PRE_AGC:
             case SEEKCAMERA_FRAME_FORMAT_CORRECTED:
+            case SEEKCAMERA_FRAME_FORMAT_COLOR_YUY2:
+                // v.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
+                // v.fmt.pix.sizeimage = width * height * 2;
+                // break;
+            case SEEKCAMERA_FRAME_FORMAT_COLOR_AYUV:
+                // note: probably not supported by gstreamer v4l2src
+                // v.fmt.pix.pixelformat = V4L2_PIX_FMT_AYUV32;
+                // v.fmt.pix.sizeimage = width * height * 4;
+                // break;
             default:
-                syslog(LOG_ERR, "Unknown frame format %d.", m_frameFormat);
+                syslog(LOG_ERR, "Unsupported frame format %d.", m_frameFormat);
                 deviceOpenResult = -1;
                 break;
             }
@@ -746,6 +882,15 @@ void EchoThermCamera::_openDevice(int width, int height)
             }
         }
     }
+    m_zoomRate = 0.0;
+    m_currentZoom = n_minZoom;
+    m_width = width;
+    m_height = height;
+    m_roiX = 0;
+    m_roiY = 0;
+    m_roiWidth = width;
+    m_roiHeight = height;
+    m_lastZoomTime = std::chrono::system_clock::time_point();
 #ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::_openDevice(%d, %d)", width, height);
 #endif
@@ -799,4 +944,136 @@ void EchoThermCamera::_stopShutterClickThread()
 #ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::_stopShutterClickThread()");
 #endif
+}
+
+void EchoThermCamera::_doContinuousZoom()
+{
+    auto const currentTime = std::chrono::system_clock::now();
+    if (m_zoomRate > 0)
+    {
+        // zooming in
+        if (m_roiWidth > 1 && m_roiHeight > 1 && m_currentZoom < m_maxZoom)
+        {
+            if (m_lastZoomTime != std::chrono::system_clock::time_point())
+            {
+                auto const elapsedTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - m_lastZoomTime).count();
+                auto const deltaZoom = double(double(1 + m_zoomRate) * elapsedTimeMs) / 1000.0;
+                m_currentZoom = std::min(m_maxZoom, m_currentZoom + deltaZoom);
+                m_roiWidth = std::max<int>(1, (int)std::rint(m_width / m_currentZoom));
+                m_roiHeight = std::max<int>(1, (int)std::rint(m_height / m_currentZoom));
+                m_roiX = (m_width - m_roiWidth) >> 1;
+                m_roiY = (m_height - m_roiHeight) >> 1;
+#ifdef DEBUG
+                syslog(LOG_DEBUG, "zooming in  m_currentZoom=%f, m_zoomRate=%f, m_roiWidth=%d, m_roiHeight=%d, m_roiX=%d, m_roiY=%d, elapsedTime(ms) = %d, deltaZoom=%f", m_currentZoom, m_zoomRate, m_roiWidth, m_roiHeight, m_roiX, m_roiY, (int)elapsedTimeMs, deltaZoom);
+#endif
+            }
+        }
+        if (m_roiWidth <= 1 || m_roiHeight <= 1 || m_currentZoom >= m_maxZoom)
+        {
+            // stop zooming in
+            m_zoomRate = 0;
+            m_currentZoom = m_maxZoom;
+        }
+    }
+    else if (m_zoomRate < 0)
+    {
+        if (m_roiWidth < m_width && m_roiHeight < m_height && m_currentZoom > n_minZoom)
+        {
+            if (m_lastZoomTime != std::chrono::system_clock::time_point())
+            {
+                auto const elapsedTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - m_lastZoomTime).count();
+                auto const deltaZoom = double(double(1 - m_zoomRate) * elapsedTimeMs) / 1000.0;
+                m_currentZoom = std::max(n_minZoom, m_currentZoom - deltaZoom);
+                m_roiWidth = std::min<int>(m_width, (int)std::rint(m_width / m_currentZoom));
+                m_roiHeight = std::min<int>(m_height, (int)std::rint(m_height / m_currentZoom));
+                m_roiX = (m_width - m_roiWidth) >> 1;
+                m_roiY = (m_height - m_roiHeight) >> 1;
+#ifdef DEBUG
+                syslog(LOG_DEBUG, "zooming out m_currentZoom=%f, m_zoomRate=%f, m_roiWidth=%d, m_roiHeight=%d, m_roiX=%d, m_roiY=%d, elapsedTime(ms) = %d, deltaZoom=%f", m_currentZoom, m_zoomRate, m_roiWidth, m_roiHeight, m_roiX, m_roiY, (int)elapsedTimeMs, deltaZoom);
+#endif
+            }
+        }
+        if (m_roiWidth >= m_width || m_roiHeight >= m_height || m_currentZoom <= n_minZoom)
+        {
+            // stop zooming out
+            m_zoomRate = 0;
+            m_currentZoom = n_minZoom;
+            m_roiX = 0;
+            m_roiY = 0;
+            m_roiWidth = m_width;
+            m_roiHeight = m_height;
+        }
+    }
+    m_lastZoomTime = currentTime;
+}
+
+ssize_t EchoThermCamera::_writeBytes(void *p_frameData, size_t frameDataSize)
+{
+    ssize_t bytesWritten = -1;
+    if (m_roiX == 0 && m_roiY == 0 && m_roiWidth == m_width && m_roiHeight == m_height)
+    {
+        bytesWritten = write(m_loopbackDevice, p_frameData, frameDataSize);
+    }
+    else
+    {
+        switch (m_frameFormat)
+        {
+#if 0
+            //Not supported on current version of OpenCV
+        case SEEKCAMERA_FRAME_FORMAT_COLOR_YUY2:
+        {
+            cv::Mat srcMat(m_height, m_width, CV_8UC2, p_frameData);
+            cv::Mat srcROI(srcMat, cv::Rect(m_roiX, m_roiY, m_roiWidth, m_roiHeight));
+            cv::Mat dstTmp1;
+            cv::cvtColor(srcROI,dstTmp1,cv::COLOR_YUV2BGR_YUYV);
+            cv::Mat dstTmp2;
+            cv::resize(dstTmp1,dstTmp2,cv::Size(m_width, m_height), 0, 0, cv::INTER_LINEAR);
+            cv::Mat dstMat;
+            cv::cvtColor(dstTmp2,dstMat,148);
+            bytesWritten = write(m_loopbackDevice, dstMat.data, dstMat.total() * dstMat.elemSize());
+            break;
+        }
+#endif
+        case SEEKCAMERA_FRAME_FORMAT_COLOR_RGB565:
+        {
+            // We need to convert it to BGR
+            cv::Mat srcMat(m_height, m_width, CV_8UC2, p_frameData);
+            cv::Mat srcROI(srcMat, cv::Rect(m_roiX, m_roiY, m_roiWidth, m_roiHeight));
+            cv::Mat dstTmp1;
+            cv::cvtColor(srcROI, dstTmp1, cv::COLOR_BGR5652BGR);
+            cv::Mat dstTmp2;
+            cv::resize(dstTmp1, dstTmp2, cv::Size(m_width, m_height), 0, 0, cv::INTER_LINEAR);
+            cv::Mat dstMat;
+            cv::cvtColor(dstTmp2, dstMat, cv::COLOR_BGR2BGR565);
+            bytesWritten = write(m_loopbackDevice, dstMat.data, dstMat.total() * dstMat.elemSize());
+            break;
+        }
+        case SEEKCAMERA_FRAME_FORMAT_COLOR_ARGB8888:
+        {
+            cv::Mat srcMat(m_height, m_width, CV_8UC4, p_frameData);
+            cv::Mat srcROI(srcMat, cv::Rect(m_roiX, m_roiY, m_roiWidth, m_roiHeight));
+            cv::Mat dstMat;
+            cv::resize(srcROI, dstMat, cv::Size(m_width, m_height), 0, 0, cv::INTER_LINEAR);
+            bytesWritten = write(m_loopbackDevice, dstMat.data, dstMat.total() * dstMat.elemSize());
+            break;
+        }
+        case SEEKCAMERA_FRAME_FORMAT_GRAYSCALE:
+        {
+            cv::Mat srcMat(m_height, m_width, CV_8U, p_frameData);
+            cv::Mat srcROI(srcMat, cv::Rect(m_roiX, m_roiY, m_roiWidth, m_roiHeight));
+            cv::Mat dstMat;
+            cv::resize(srcROI, dstMat, cv::Size(m_width, m_height), 0, 0, cv::INTER_LINEAR);
+            bytesWritten = write(m_loopbackDevice, dstMat.data, dstMat.total() * dstMat.elemSize());
+            break;
+        }
+        case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6:
+        case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT:
+        case SEEKCAMERA_FRAME_FORMAT_PRE_AGC:
+        case SEEKCAMERA_FRAME_FORMAT_CORRECTED:
+        case SEEKCAMERA_FRAME_FORMAT_COLOR_AYUV:
+        default:
+            break;
+        }
+    }
+    return bytesWritten;
 }

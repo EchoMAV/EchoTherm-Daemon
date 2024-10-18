@@ -89,11 +89,12 @@ echothermd --daemon --colorPalette 7 --shutterMode 0
 The full list of available startup options:
 ```
   --help                    Produce this message
-  --daemon                  Start the process as a daemon (most often used)
-  --kill                    Kill the running background (daemon) instance
-  --loopbackDeviceName arg  Choose the initial loopback device name (default=/dev/video0 if available on the system)
+  --daemon                  Start the process as a daemon
+  --kill                    Kill the existing instance
+  --maxZoom arg             Set the maximum zoom (a floating point number)
+  --loopbackDeviceName arg  Choose the initial loopback device name
   --colorPalette arg        Choose the initial color palette
-                            COLOR_PALETTE_WHITE_HOT =  0 (default)
+                            COLOR_PALETTE_WHITE_HOT =  0
                             COLOR_PALETTE_BLACK_HOT =  1
                             COLOR_PALETTE_SPECTRA   =  2
                             COLOR_PALETTE_PRISM     =  3
@@ -109,33 +110,40 @@ The full list of available startup options:
                             COLOR_PALETTE_USER_4    = 13
   --shutterMode arg         Choose the initial shutter mode
                             negative = manual
-                            zero     = auto (default)
+                            zero     = auto
                             positive = number of seconds between shutter events
   --frameFormat arg         Choose the initial frame format
-                            FRAME_FORMAT_CORRECTED               =  0x04
-                            FRAME_FORMAT_PRE_AGC                 =  0x08
-                            FRAME_FORMAT_THERMOGRAPHY_FLOAT      =  0x10
-                            FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6 =  0x20
-                            FRAME_FORMAT_GRAYSCALE               =  0x40
-                            FRAME_FORMAT_COLOR_ARGB8888          =  0x80
-                            FRAME_FORMAT_COLOR_RGB565            =  0x100
-                            FRAME_FORMAT_COLOR_AYUV              =  0x200
-                            FRAME_FORMAT_COLOR_YUY2              =  0x400 (default)
+                            FRAME_FORMAT_CORRECTED               = 0x04  (not 
+                            yet implemented)
+                            FRAME_FORMAT_PRE_AGC                 = 0x08  (not 
+                            yet implemented)
+                            FRAME_FORMAT_THERMOGRAPHY_FLOAT      = 0x10  (not 
+                            yet implemented)
+                            FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6 = 0x20  (not 
+                            yet implemented)
+                            FRAME_FORMAT_GRAYSCALE               = 0x40
+                            FRAME_FORMAT_COLOR_ARGB8888          = 0x80  
+                            (default)
+                            FRAME_FORMAT_COLOR_RGB565            = 0x100
+                            FRAME_FORMAT_COLOR_AYUV              = 0x200 (not 
+                            yet implemented)
+                            FRAME_FORMAT_COLOR_YUY2              = 0x400 (not 
+                            yet implemented)
                             
   --pipelineMode arg        Choose the initial pipeline mode
                             PIPELINE_LITE       = 0
                             PIPELINE_LEGACY     = 1
-                            PIPELINE_PROCESSED  = 2 (default)
-                            Note that in PIPELINE_PROCESSED, sharpen, 
-                            flat scene, and gradient filters are disabled
+                            PIPELINE_PROCESSED  = 2
+                            Note that in PIPELINE_PROCESSED, sharpen, flat 
+                            scene, and gradient filters are disabled
   --sharpenFilterMode arg   Choose the initial state of the sharpen filter
-                            zero     = disabled (default)
+                            zero     = disabled
                             non-zero = enabled
   --flatSceneFilterMode arg Choose the initial state of the flat scene filter
-                            zero     = disabled (default)
+                            zero     = disabled
                             non-zero = enabled
   --gradientFilterMode arg  Choose the initial state of the gradient filter
-                            zero     = disabled (default)
+                            zero     = disabled
                             non-zero = enabled
 ```
 
@@ -155,6 +163,14 @@ echotherm --colorPalette 1 --shutterMode 0
   --help                    Produce this message
   --shutter                 Trigger the shutter
   --status                  Get the status of the camera
+  --zoomRate arg            Choose the zoom rate (a floating point number)
+                            negative = zooming out
+                            zero     = not changing zoom
+                            positive = zooming in
+  --zoom arg                Instantly set the current zoom (a floating point 
+                            number)
+  --maxZoom arg             Set the maximum zoom (a floating point number)
+  --getZoom                 Get a string indicating current zoom parameters
   --colorPalette arg        Choose the color palette
                             COLOR_PALETTE_WHITE_HOT =  0
                             COLOR_PALETTE_BLACK_HOT =  1
@@ -170,16 +186,16 @@ echotherm --colorPalette 1 --shutterMode 0
                             COLOR_PALETTE_USER_2    = 11
                             COLOR_PALETTE_USER_3    = 12
                             COLOR_PALETTE_USER_4    = 13
-  --shutterMode arg         Choose the shutter mode, where the ar
-                            -1  = Manual (use --shutter argument for future shutter control)
-                            0   = Auto (Camera will activate the shutter as needed to optimize quality)
-                            > 0 = Time-based shutter, number of seconds between shutter events
+  --shutterMode arg         Choose the shutter mode
+                            negative = manual
+                            zero     = auto
+                            positive = number of seconds between shutter events
   --pipelineMode arg        Choose the pipeline mode
                             PIPELINE_LITE       = 0
                             PIPELINE_LEGACY     = 1
-                            PIPELINE_PROCESSED  = 2 (Recommneded)
-                            Note that in PIPELINE_PROCESSED, sharpen, 
-                            flat scene, and gradient filters are disabled
+                            PIPELINE_PROCESSED  = 2
+                            Note that in PIPELINE_PROCESSED, sharpen, flat 
+                            scene, and gradient filters are disabled
   --sharpenFilterMode arg   Choose the state of the sharpen filter
                             zero     = disabled
                             non-zero = enabled
