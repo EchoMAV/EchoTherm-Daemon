@@ -164,7 +164,7 @@ echotherm --colorPalette 1 --shutterMode 0
   --help                    Produce this message
   --shutter                 Trigger the shutter
   --status                  Get the status of the camera
-  --startRecording arg      Begin recording to a specified file
+  --startRecording arg      Begin recording to a specified file (currently only .mp4)
   --stopRecording           Stop recording to a file
   --takeScreenshot arg      Save a screenshot of the current frame to a file
   --zoomRate arg            Choose the zoom rate (a floating point number)

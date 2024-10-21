@@ -333,7 +333,7 @@ int main(int argc, char *argv[])
         desc.add_options()("shutter", "Trigger the shutter");
         desc.add_options()("status", "Get the status of the camera");
         desc.add_options()("startRecording", boost::program_options::value<std::string>(),
-                           "Begin recording to a specified file");
+                           "Begin recording to a specified file (currently only .mp4)");
         desc.add_options()("stopRecording", "Stop recording to a file");
         desc.add_options()("takeScreenshot", boost::program_options::value<std::string>(),
                            "Save a screenshot of the current frame to a file");
