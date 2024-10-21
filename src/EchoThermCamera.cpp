@@ -9,6 +9,8 @@
 #include <cstring>
 #include <sstream>
 #include <opencv2/imgproc.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/videoio.hpp>
 
 // Define the DEBUG macro to enable debug code
 // #define DEBUG
@@ -17,6 +19,7 @@ namespace
 {
     constexpr static inline auto const n_minZoom = 1.0;
     constexpr static inline auto const n_defaultMaxZoom = 16.0;
+    constexpr static inline auto const n_frameRate = 27.0;
 }
 
 EchoThermCamera::EchoThermCamera()
@@ -45,7 +48,21 @@ EchoThermCamera::EchoThermCamera()
       m_mut{},
       m_shutterClickThread{},
       m_shutterClickCondition{},
-      m_shutterClickThreadRunning{false}
+      m_shutterClickThreadRunning{false},
+      m_screenshotFilePath{},
+      m_videoFilePath{},
+      m_screenshotStatus{},
+      m_screenshotStatusReadyMut{},
+      m_screenshotStatusReadyCondition{},
+      m_recordingStatus{},
+      m_recordingStatusReadyMut{},
+      m_recordingStatusReadyCondition{},
+      m_recordingFrameQueue{},
+      m_recordingFrameQueueMut{},
+      m_recordingFramesReadyCondition{},
+      m_recordingThread{},
+      m_recordingThreadRunning{false},
+      mp_videoWriter{}
 {
 #ifdef DEBUG
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::EchoThermCamera()");
@@ -89,14 +106,15 @@ void EchoThermCamera::setFrameFormat(int frameFormat)
     {
         switch (frameFormat)
         {
-        case SEEKCAMERA_FRAME_FORMAT_COLOR_YUY2:
-        case SEEKCAMERA_FRAME_FORMAT_COLOR_AYUV:
-        case SEEKCAMERA_FRAME_FORMAT_COLOR_RGB565:
+
         case SEEKCAMERA_FRAME_FORMAT_COLOR_ARGB8888:
         case SEEKCAMERA_FRAME_FORMAT_GRAYSCALE:
             m_frameFormat = frameFormat;
             break;
         // TODO support these as well as bit-wise ORed frame formats
+        case SEEKCAMERA_FRAME_FORMAT_COLOR_RGB565:
+        case SEEKCAMERA_FRAME_FORMAT_COLOR_YUY2:
+        case SEEKCAMERA_FRAME_FORMAT_COLOR_AYUV:
         case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6:
         case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT:
         case SEEKCAMERA_FRAME_FORMAT_PRE_AGC:
@@ -651,6 +669,150 @@ void EchoThermCamera::setZoom(double zoom)
 #endif
 }
 
+std::string EchoThermCamera::startRecording(std::filesystem::path const &filePath)
+{
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "ENTER EchoThermCamera::startRecording(%s)", filePath.string().c_str());
+#endif
+    std::string status;
+    if (mp_videoWriter && mp_videoWriter->isOpened())
+    {
+        status = "Already recording to video file " + m_videoFilePath.string();
+    }
+    else
+    {
+        if(!m_recordingStatus.empty())
+        {
+            status = "Previous recording session stopped unexpectedly: "+m_recordingStatus+"; ";
+            m_recordingStatus.clear();
+        }
+        auto extension = filePath.extension().string();
+        std::transform(std::begin(extension), std::end(extension), std::begin(extension), [](auto const c)
+                       { return (char)std::tolower(c); });
+        if (extension == ".mp4")
+        {
+            std::unique_lock<std::mutex> recordingLock(m_recordingFrameQueueMut);
+            m_recordingFrameQueue.clear();
+            m_videoFilePath = filePath;
+            auto const fourcc = cv::VideoWriter::fourcc('m', 'p', '4', 'v');
+            double fps = n_frameRate; // 27 fps assumed
+            try
+            {
+                mp_videoWriter = std::make_unique<cv::VideoWriter>(m_videoFilePath.string(), fourcc, fps, cv::Size(m_width, m_height), m_frameFormat != SEEKCAMERA_FRAME_FORMAT_GRAYSCALE);
+                if (mp_videoWriter->isOpened())
+                {
+                    status += "Video file " + m_videoFilePath.string() + " opened for writing";
+                }
+                else
+                {
+                    status += "Failed to open file " + m_videoFilePath.string() + " opened for writing";
+                }
+            }
+            catch (cv::Exception const &e)
+            {
+                status += "Failed to open file " + m_videoFilePath.string() + " opened for writing : " + e.msg;
+            }
+            recordingLock.unlock();
+            m_recordingFramesReadyCondition.notify_one();
+        }
+        else
+        {
+            status += "Extension must be '.mp4'";
+        }
+    }
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "EXIT  EchoThermCamera::startRecording(%s) with %s", filePath.string().c_str(), status.c_str());
+#endif
+    return status;
+}
+
+std::string EchoThermCamera::takeScreenshot(std::filesystem::path const &filePath)
+{
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "ENTER EchoThermCamera::takeScreenshot(%s)", filePath.string().c_str());
+#endif
+    std::string status;
+    // set the path so that the next frame will see the path and write it
+    // then wait for the status to update
+    m_screenshotFilePath = filePath;
+    std::unique_lock<std::mutex> screenshotStatusLock(m_screenshotStatusReadyMut);
+    m_screenshotStatusReadyCondition.wait(screenshotStatusLock, [this]()
+                                          { return !m_screenshotStatus.empty() || !m_recordingThreadRunning; });
+    if (m_screenshotStatus.empty())
+    {
+        status = "Failed to take screenshot on file path " + filePath.string() + " because the screenshot thread was stopped";
+    }
+    else
+    {
+        status = std::move(m_screenshotStatus);
+        m_screenshotStatus.clear();
+    }
+    screenshotStatusLock.unlock();
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "EXIT  EchoThermCamera::takeScreenshot(%s) with %s", filePath.string().c_str(), status.c_str());
+#endif
+    return status;
+}
+
+std::string EchoThermCamera::stopRecording()
+{
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "ENTER EchoThermCamera::stopRecording()");
+#endif
+    std::string status;
+    if (mp_videoWriter && mp_videoWriter->isOpened())
+    {
+        std::lock_guard<std::mutex> recordingLock(m_recordingFrameQueueMut);
+        try
+        {
+            //flush the frames
+            while (!m_recordingFrameQueue.empty())
+            {
+                cv::Mat queueFrame=std::move(m_recordingFrameQueue.front());
+                m_recordingFrameQueue.pop_front();
+                 cv::Mat frameToWrite;
+                if(queueFrame.channels()==4)
+                {
+                    assert(m_frameFormat == SEEKCAMERA_FRAME_FORMAT_COLOR_ARGB8888);
+                    cv::cvtColor(queueFrame,frameToWrite, cv::COLOR_BGRA2BGR);
+                }
+                else
+                {
+                    frameToWrite = std::move(queueFrame);
+                }
+                 mp_videoWriter->write(frameToWrite);
+            }
+            mp_videoWriter->release();
+            status = "Successfully finished writing video file "+m_videoFilePath.string();
+        }
+        catch (cv::Exception const &e)
+        {
+            status = "Exception occurred while writing video frame to " + m_videoFilePath.string() + " : " + e.msg;
+            mp_videoWriter->release();
+        }
+    }
+    else
+    {
+        std::lock_guard<std::mutex> recordingStatusLock(m_recordingStatusReadyMut);
+        if (m_recordingStatus.empty())
+        {
+            status = "Recording was not in progress";
+        }
+        else
+        {
+
+            status = std::move(m_recordingStatus);
+            m_recordingStatus.clear();
+        }
+    }
+    mp_videoWriter.release();
+    m_videoFilePath.clear();
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "EXIT  EchoThermCamera::stopRecording() with %s", status.c_str());
+#endif
+    return status;
+}
+
 void EchoThermCamera::_connect(void *p_camera)
 {
 #ifdef DEBUG
@@ -689,6 +851,7 @@ void EchoThermCamera::_closeSession()
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::_closeSession()");
 #endif
     _stopShutterClickThread();
+    _stopRecordingThread();
     seekcamera_error_t status = SEEKCAMERA_SUCCESS;
     if (mp_camera)
     {
@@ -718,6 +881,11 @@ void EchoThermCamera::_openSession(bool reconnect)
 #endif
     // Register a frame available callback function.
     auto status = SEEKCAMERA_SUCCESS;
+    m_screenshotFilePath.clear();
+    m_screenshotStatus.clear();
+    m_videoFilePath.clear();
+    m_recordingStatus.clear();
+    m_recordingFrameQueue.clear();
     if (!reconnect)
     {
         status = seekcamera_register_frame_available_callback((seekcamera_t *)mp_camera,
@@ -806,6 +974,7 @@ void EchoThermCamera::_openSession(bool reconnect)
         syslog(LOG_ERR, "Failed to register frame callback: %s.", seekcamera_error_get_str(status));
     }
     _startShutterClickThread();
+    _startRecordingThread();
 #ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::_openSession(%d)", reconnect);
 #endif
@@ -838,10 +1007,7 @@ void EchoThermCamera::_openDevice(int width, int height)
             switch (m_frameFormat)
             {
 
-            case SEEKCAMERA_FRAME_FORMAT_COLOR_RGB565:
-                v.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB565;
-                v.fmt.pix.sizeimage = width * height * 2;
-                break;
+           
             case SEEKCAMERA_FRAME_FORMAT_COLOR_ARGB8888:
                 v.fmt.pix.pixelformat = V4L2_PIX_FMT_ARGB32;
                 v.fmt.pix.sizeimage = width * height * 4;
@@ -855,6 +1021,10 @@ void EchoThermCamera::_openDevice(int width, int height)
             case SEEKCAMERA_FRAME_FORMAT_PRE_AGC:
             case SEEKCAMERA_FRAME_FORMAT_CORRECTED:
             case SEEKCAMERA_FRAME_FORMAT_COLOR_YUY2:
+            case SEEKCAMERA_FRAME_FORMAT_COLOR_RGB565:
+                //v.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB565;
+                //v.fmt.pix.sizeimage = width * height * 2;
+                //break;
                 // v.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
                 // v.fmt.pix.sizeimage = width * height * 2;
                 // break;
@@ -946,6 +1116,104 @@ void EchoThermCamera::_stopShutterClickThread()
 #endif
 }
 
+void EchoThermCamera::_startRecordingThread()
+{
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "ENTER EchoThermCamera::_startRecordingThread()");
+#endif
+    m_recordingThreadRunning = true;
+    m_recordingThread = std::thread([this]()
+                                    {
+        for (;;)
+        {
+            std::unique_lock<decltype(m_recordingFrameQueueMut)> lock(m_recordingFrameQueueMut);
+            m_recordingFramesReadyCondition.wait(lock,[this](){return (!m_recordingFrameQueue.empty() && (!m_screenshotFilePath.empty()||(mp_videoWriter && mp_videoWriter->isOpened()))) || !m_recordingThreadRunning.load();});
+            if (!m_recordingThreadRunning)
+            {
+                if(mp_videoWriter)
+                {
+                    mp_videoWriter->release();
+                    mp_videoWriter.release();
+                }
+                break;
+            }
+            assert(!m_recordingFrameQueue.empty());
+            cv::Mat queueFrame=std::move(m_recordingFrameQueue.front());
+            m_recordingFrameQueue.pop_front();
+            if(!m_screenshotFilePath.empty())
+            {
+                try
+                {
+                    if(cv::imwrite(m_screenshotFilePath.string(),queueFrame))
+                    {
+                        m_screenshotStatus = "Wrote screenshot to "+m_screenshotFilePath.string();
+                    }
+                    else
+                    {
+                        m_screenshotStatus = "Failed to write screenshot to "+m_screenshotFilePath.string()+" because of an unspecified error";
+                    }
+                }
+                catch( cv::Exception const & e)
+                {
+                    m_screenshotStatus = "Exception occurred while writing screenshot to "+m_screenshotFilePath.string()+" : "+e.msg;
+                }
+                m_screenshotFilePath.clear();
+                m_screenshotStatusReadyCondition.notify_one();
+            }
+            if(mp_videoWriter && mp_videoWriter->isOpened())
+            {
+                cv::Mat frameToWrite;
+                if(queueFrame.channels()==4)
+                {
+                    assert(m_frameFormat == SEEKCAMERA_FRAME_FORMAT_COLOR_ARGB8888);
+                    cv::cvtColor(queueFrame,frameToWrite, cv::COLOR_BGRA2BGR);
+                }
+                else
+                {
+                    frameToWrite = std::move(queueFrame);
+                }
+                try
+                {
+                    mp_videoWriter->write(frameToWrite);
+                }
+                catch(cv::Exception const& e)
+                {
+                    m_recordingStatus = "Exception occurred while writing video frame to "+m_videoFilePath.string()+" : "+e.msg;
+                    mp_videoWriter->release();
+                    mp_videoWriter.release();
+                    m_recordingStatusReadyCondition.notify_one();
+                }
+            }
+            lock.unlock();
+            
+        } });
+
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "EXIT  EchoThermCamera::_startScreenshotThread()");
+#endif
+}
+
+void EchoThermCamera::_stopRecordingThread()
+{
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "ENTER EchoThermCamera::_stopRecordingThread()");
+#endif
+    m_recordingThreadRunning = false;
+    m_recordingFramesReadyCondition.notify_one();
+    if (m_recordingThread.joinable())
+    {
+        m_recordingThread.join();
+    }
+    m_recordingFrameQueue.clear();
+    m_screenshotFilePath.clear();
+    m_videoFilePath.clear();
+    m_recordingStatus.clear();
+    m_screenshotStatus.clear();
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "EXIT  EchoThermCamera::_stopRecordingThread()");
+#endif
+}
+
 void EchoThermCamera::_doContinuousZoom()
 {
     auto const currentTime = std::chrono::system_clock::now();
@@ -1007,47 +1275,62 @@ void EchoThermCamera::_doContinuousZoom()
     m_lastZoomTime = currentTime;
 }
 
+void EchoThermCamera::_pushFrame(int cvFrameType, void *p_frameData)
+{
+    ;
+    if (!m_screenshotFilePath.empty() || (mp_videoWriter && mp_videoWriter->isOpened()))
+    {
+        {
+            std::lock_guard lock(m_recordingFrameQueueMut);
+            m_recordingFrameQueue.push_back(cv::Mat(m_height, m_width, cvFrameType, p_frameData).clone());
+        }
+        m_recordingFramesReadyCondition.notify_one();
+    }
+}
+
 ssize_t EchoThermCamera::_writeBytes(void *p_frameData, size_t frameDataSize)
 {
     ssize_t bytesWritten = -1;
+    cv::Mat cvFrame;
     if (m_roiX == 0 && m_roiY == 0 && m_roiWidth == m_width && m_roiHeight == m_height)
     {
         bytesWritten = write(m_loopbackDevice, p_frameData, frameDataSize);
+        if (!m_screenshotFilePath.empty() || (mp_videoWriter && mp_videoWriter->isOpened()))
+        {
+            switch (m_frameFormat)
+            {
+            case SEEKCAMERA_FRAME_FORMAT_COLOR_ARGB8888:
+            {
+                _pushFrame(CV_8UC4, p_frameData);
+                break;
+            }
+            case SEEKCAMERA_FRAME_FORMAT_GRAYSCALE:
+            {
+                _pushFrame(CV_8U, p_frameData);
+                break;
+            }
+            case SEEKCAMERA_FRAME_FORMAT_COLOR_RGB565:
+            case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6:
+            case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT:
+            case SEEKCAMERA_FRAME_FORMAT_PRE_AGC:
+            case SEEKCAMERA_FRAME_FORMAT_CORRECTED:
+            case SEEKCAMERA_FRAME_FORMAT_COLOR_AYUV:
+            case SEEKCAMERA_FRAME_FORMAT_COLOR_YUY2:
+            default:
+            {
+                std::lock_guard screenshotLock(m_screenshotStatusReadyMut);
+                m_screenshotStatus = "Could not write screenshot to " + m_screenshotFilePath.string() + " because the frame format is not supported";
+                m_screenshotFilePath.clear();
+            }
+                m_screenshotStatusReadyCondition.notify_one();
+                break;
+            }
+        }
     }
     else
     {
         switch (m_frameFormat)
         {
-#if 0
-            //Not supported on current version of OpenCV
-        case SEEKCAMERA_FRAME_FORMAT_COLOR_YUY2:
-        {
-            cv::Mat srcMat(m_height, m_width, CV_8UC2, p_frameData);
-            cv::Mat srcROI(srcMat, cv::Rect(m_roiX, m_roiY, m_roiWidth, m_roiHeight));
-            cv::Mat dstTmp1;
-            cv::cvtColor(srcROI,dstTmp1,cv::COLOR_YUV2BGR_YUYV);
-            cv::Mat dstTmp2;
-            cv::resize(dstTmp1,dstTmp2,cv::Size(m_width, m_height), 0, 0, cv::INTER_LINEAR);
-            cv::Mat dstMat;
-            cv::cvtColor(dstTmp2,dstMat,148);
-            bytesWritten = write(m_loopbackDevice, dstMat.data, dstMat.total() * dstMat.elemSize());
-            break;
-        }
-#endif
-        case SEEKCAMERA_FRAME_FORMAT_COLOR_RGB565:
-        {
-            // We need to convert it to BGR
-            cv::Mat srcMat(m_height, m_width, CV_8UC2, p_frameData);
-            cv::Mat srcROI(srcMat, cv::Rect(m_roiX, m_roiY, m_roiWidth, m_roiHeight));
-            cv::Mat dstTmp1;
-            cv::cvtColor(srcROI, dstTmp1, cv::COLOR_BGR5652BGR);
-            cv::Mat dstTmp2;
-            cv::resize(dstTmp1, dstTmp2, cv::Size(m_width, m_height), 0, 0, cv::INTER_LINEAR);
-            cv::Mat dstMat;
-            cv::cvtColor(dstTmp2, dstMat, cv::COLOR_BGR2BGR565);
-            bytesWritten = write(m_loopbackDevice, dstMat.data, dstMat.total() * dstMat.elemSize());
-            break;
-        }
         case SEEKCAMERA_FRAME_FORMAT_COLOR_ARGB8888:
         {
             cv::Mat srcMat(m_height, m_width, CV_8UC4, p_frameData);
@@ -1055,6 +1338,7 @@ ssize_t EchoThermCamera::_writeBytes(void *p_frameData, size_t frameDataSize)
             cv::Mat dstMat;
             cv::resize(srcROI, dstMat, cv::Size(m_width, m_height), 0, 0, cv::INTER_LINEAR);
             bytesWritten = write(m_loopbackDevice, dstMat.data, dstMat.total() * dstMat.elemSize());
+            _pushFrame(dstMat.type(), dstMat.data);
             break;
         }
         case SEEKCAMERA_FRAME_FORMAT_GRAYSCALE:
@@ -1064,15 +1348,28 @@ ssize_t EchoThermCamera::_writeBytes(void *p_frameData, size_t frameDataSize)
             cv::Mat dstMat;
             cv::resize(srcROI, dstMat, cv::Size(m_width, m_height), 0, 0, cv::INTER_LINEAR);
             bytesWritten = write(m_loopbackDevice, dstMat.data, dstMat.total() * dstMat.elemSize());
+            _pushFrame(dstMat.type(), dstMat.data);
             break;
         }
+        case SEEKCAMERA_FRAME_FORMAT_COLOR_RGB565:
         case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6:
         case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT:
         case SEEKCAMERA_FRAME_FORMAT_PRE_AGC:
         case SEEKCAMERA_FRAME_FORMAT_CORRECTED:
         case SEEKCAMERA_FRAME_FORMAT_COLOR_AYUV:
         default:
-            break;
+        {
+            if (!m_screenshotFilePath.empty())
+            {
+                {
+                    std::lock_guard screenshotLock(m_screenshotStatusReadyMut);
+                    m_screenshotStatus = "Could not write screenshot to " + m_screenshotFilePath.string() + " because the frame format is not supported";
+                    m_screenshotFilePath.clear();
+                }
+                m_screenshotStatusReadyCondition.notify_one();
+                break;
+            }
+        }
         }
     }
     return bytesWritten;

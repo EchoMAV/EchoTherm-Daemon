@@ -5,6 +5,14 @@
 #include <condition_variable>
 #include <thread>
 #include <atomic>
+#include <filesystem>
+#include <deque>
+
+namespace cv
+{
+    class Mat;
+    class VideoWriter;
+}
 
 class EchoThermCamera
 {
@@ -83,6 +91,15 @@ public:
     void setZoom(double zoom);
     //set the maximum zoom
     void setMaxZoom(double maxZoom);
+    //start recording to the file path
+    //return a string indicating success or failure
+    std::string startRecording(std::filesystem::path const& filePath);
+    //take a screenshot of the current frame to the file path
+    //return a string indicating success or failure
+    std::string takeScreenshot(std::filesystem::path const& filePath);
+    //stop recording
+    //return a string indicating success or failure
+    std::string stopRecording();
 
 
 private:
@@ -94,8 +111,12 @@ private:
     void _openDevice(int width, int height);
     void _startShutterClickThread();
     void _stopShutterClickThread();
+    void _startRecordingThread();
+    void _stopRecordingThread();
     ssize_t _writeBytes(void* p_frameData, size_t frameDataSize);
     void _doContinuousZoom();
+    void _pushFrame(int cvFrameType, void* p_frameData);
+
 
     std::string m_loopbackDeviceName;
     std::string m_chipId;
@@ -123,4 +144,19 @@ private:
     std::thread m_shutterClickThread;
     std::condition_variable_any m_shutterClickCondition;
     std::atomic_bool m_shutterClickThreadRunning;
+    std::filesystem::path m_screenshotFilePath;
+    std::filesystem::path m_videoFilePath;
+    std::string m_screenshotStatus;
+    mutable std::mutex m_screenshotStatusReadyMut;
+    std::condition_variable m_screenshotStatusReadyCondition;
+    std::string m_recordingStatus;
+    mutable std::mutex m_recordingStatusReadyMut;
+    std::condition_variable m_recordingStatusReadyCondition;
+    std::deque<cv::Mat> m_recordingFrameQueue;
+    mutable std::mutex m_recordingFrameQueueMut;
+    std::condition_variable m_recordingFramesReadyCondition;
+    std::thread m_recordingThread;
+    std::atomic_bool m_recordingThreadRunning;
+    std::unique_ptr<cv::VideoWriter> mp_videoWriter;
+
 };

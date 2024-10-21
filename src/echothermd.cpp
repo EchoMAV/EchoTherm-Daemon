@@ -8,6 +8,8 @@
 #include <cstring>
 #include <charconv>
 #include <iostream>
+#include <regex>
+#include <filesystem>
 
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
@@ -46,6 +48,29 @@ namespace
     };
 
     std::unique_ptr<EchoThermCamera> np_camera;
+
+      std::string _desanitizeString(std::string const &input)
+    {
+        std::string output = input;
+        if (output.size() >= 3)
+        {
+            std::regex r("%[0-9A-F]{2}");
+            size_t dynamicLength = output.size() - 2;
+            for (size_t i = 0; i < dynamicLength; ++i)
+            {
+                std::string haystack = output.substr(i, 3);
+                std::smatch sm;
+                if (std::regex_match(haystack, sm, r))
+                {
+                    haystack = haystack.replace(0, 1, "0x");
+                    std::string const rc = {(char)std::stoi(haystack, nullptr, 16)};
+                    output = output.replace(std::begin(output) + i, std::begin(output) + i + 3, rc);
+                }
+                dynamicLength = output.size() - 2;
+            }
+        }
+        return output;
+    }
 
     std::errc _parseInt(std::string str, int *p_int)
     {
@@ -491,6 +516,37 @@ namespace
                     }
                 }
             }
+            else if (strcmp(p_token, "STARTRECORDING") == 0)
+            {
+                if ((p_token = strtok(nullptr, " ")) == nullptr)
+                {
+                    syslog(LOG_NOTICE, "STARTRECORDING command received, but no file path was specified.");
+                }
+                else
+                {
+                    std::filesystem::path filePath = _desanitizeString(p_token);
+                    syslog(LOG_NOTICE, "STARTRECORDING: %s", filePath.string().c_str());
+                    response = np_camera->startRecording(filePath);
+                }
+            }
+            else if (strcmp(p_token, "STOPRECORDING") == 0)
+            {
+                syslog(LOG_NOTICE, "STOPRECORDING");
+                response=np_camera->stopRecording();
+            }
+            else if (strcmp(p_token, "TAKESCREENSHOT") == 0)
+            {
+                if ((p_token = strtok(nullptr, " ")) == nullptr)
+                {
+                    syslog(LOG_NOTICE, "TAKESCREENSHOT command received, but no file path was specified.");
+                }
+                else
+                {
+                    std::filesystem::path filePath = _desanitizeString(p_token);
+                    syslog(LOG_NOTICE, "TAKESCREENSHOT: %s", filePath.string().c_str());
+                    response = np_camera->takeScreenshot(filePath);
+                }
+            }
 #if 0
             //Not supported because of crashing issues
             else if (strcmp(p_token, "FORMAT") == 0)
@@ -735,7 +791,7 @@ int main(int argc, char *argv[])
                            "FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6 = 0x20  (not yet implemented)\n"
                            "FRAME_FORMAT_GRAYSCALE               = 0x40\n"
                            "FRAME_FORMAT_COLOR_ARGB8888          = 0x80  (default)\n"
-                           "FRAME_FORMAT_COLOR_RGB565            = 0x100\n"
+                           "FRAME_FORMAT_COLOR_RGB565            = 0x100 (not yet implemented)\n"
                            "FRAME_FORMAT_COLOR_AYUV              = 0x200 (not yet implemented)\n"
                            "FRAME_FORMAT_COLOR_YUY2              = 0x400 (not yet implemented)\n");
         desc.add_options()("pipelineMode", boost::program_options::value<std::string>(),

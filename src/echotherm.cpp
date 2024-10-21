@@ -2,10 +2,32 @@
 // #include <netinet/in.h>
 #include <boost/program_options.hpp>
 #include <iostream>
+#include <regex>
+#include <iomanip>
 
 namespace
 {
     constexpr static inline auto const n_port = 9182;
+
+    std::string _sanitizeString(std::string const &input)
+    {
+        std::ostringstream oss;
+        std::regex r("[!'\\(\\)*-.0-9A-Za-z_~]");
+        for (char const c : input)
+        {
+            if (std::regex_match((std::string){c}, r))
+            {
+                oss << c;
+            }
+            else
+            {
+                oss << "%" << std::uppercase << std::setw(2) << std::setfill('0') << std::hex << (int)(0xff & c);
+            }
+        }
+        return oss.str();
+    }
+
+  
 
     std::string _getZoom(int const socketFileDescriptor)
     {
@@ -36,6 +58,86 @@ namespace
     {
         std::string statusStr;
         std::string const commandStr = "STATUS|";
+        auto const numSent = write(socketFileDescriptor, commandStr.c_str(), commandStr.length());
+        if (numSent < 0)
+        {
+            statusStr = "Error sending status request";
+        }
+        else
+        {
+            char p_buffer[256] = {0};
+            auto const numRead = read(socketFileDescriptor, p_buffer, 255);
+            if (numRead < 0)
+            {
+                statusStr = "Error receiving status response";
+            }
+            else
+            {
+                statusStr = std::string(p_buffer);
+            }
+        }
+        return statusStr;
+    }
+
+    std::string _startRecording(int const socketFileDescriptor, std::string const &filePath)
+    {
+        std::string statusStr;
+        std::string santizedFilePath = _sanitizeString(filePath);
+
+        std::string const commandStr = "STARTRECORDING " + santizedFilePath + '|';
+        auto const numSent = write(socketFileDescriptor, commandStr.c_str(), commandStr.length());
+        if (numSent < 0)
+        {
+            statusStr = "Error sending status request";
+        }
+        else
+        {
+            char p_buffer[256] = {0};
+            auto const numRead = read(socketFileDescriptor, p_buffer, 255);
+            if (numRead < 0)
+            {
+                statusStr = "Error receiving status response";
+            }
+            else
+            {
+                statusStr = std::string(p_buffer);
+            }
+        }
+        return statusStr;
+    }
+
+    std::string _stopRecording(int const socketFileDescriptor)
+    {
+        std::string statusStr;
+        std::string const commandStr = "STOPRECORDING|";
+        auto const numSent = write(socketFileDescriptor, commandStr.c_str(), commandStr.length());
+        if (numSent < 0)
+        {
+            statusStr = "Error sending status request";
+        }
+        else
+        {
+            char p_buffer[256] = {0};
+            auto const numRead = read(socketFileDescriptor, p_buffer, 255);
+            if (numRead < 0)
+            {
+                statusStr = "Error receiving status response";
+            }
+            else
+            {
+                statusStr = std::string(p_buffer);
+            }
+        }
+        return statusStr;
+    }
+
+
+    std::string _takeScreenshot(int const socketFileDescriptor, std::string const &filePath)
+    {
+        std::string statusStr;
+        std::string santizedFilePath = _sanitizeString(filePath);
+
+        std::string const commandStr = "TAKESCREENSHOT " + santizedFilePath + '|';
         auto const numSent = write(socketFileDescriptor, commandStr.c_str(), commandStr.length());
         if (numSent < 0)
         {
@@ -128,28 +230,28 @@ namespace
         {
             std::cout << _getStatus(socketFileDescriptor) << std::endl;
         }
-        if(vm.count("zoomRate"))
+        if (vm.count("zoomRate"))
         {
             std::string const parameterStr = vm["zoomRate"].as<std::string>();
             std::string const commandStr = "ZOOMRATE " + parameterStr + '|';
             send(socketFileDescriptor, commandStr.c_str(), commandStr.length(), 0);
             std::cout << "Sent command to set zoom rate to " << parameterStr << std::endl;
         }
-        if(vm.count("maxZoom"))
+        if (vm.count("maxZoom"))
         {
             std::string const parameterStr = vm["maxZoom"].as<std::string>();
             std::string const commandStr = "MAXZOOM " + parameterStr + '|';
             send(socketFileDescriptor, commandStr.c_str(), commandStr.length(), 0);
             std::cout << "Sent command to set max zoom to " << parameterStr << std::endl;
         }
-        if(vm.count("zoom"))
+        if (vm.count("zoom"))
         {
             std::string const parameterStr = vm["zoom"].as<std::string>();
             std::string const commandStr = "ZOOM " + parameterStr + '|';
             send(socketFileDescriptor, commandStr.c_str(), commandStr.length(), 0);
             std::cout << "Sent command to set zoom to " << parameterStr << std::endl;
         }
-        if(vm.count("getZoom"))
+        if (vm.count("getZoom"))
         {
             std::cout << _getZoom(socketFileDescriptor) << std::endl;
         }
@@ -201,6 +303,22 @@ namespace
             send(socketFileDescriptor, commandStr.c_str(), commandStr.length(), 0);
             std::cout << "Sent command to trigger shutter" << std::endl;
         }
+        if (vm.count("stopRecording"))
+        {
+            std::string const commandStr = "STOPRECORDING|";
+            std::cout << "Sent command to stop recording : " << _stopRecording(socketFileDescriptor) << std::endl;
+
+        } // use else here because stopRecording takes priority over startRecording
+        else if (vm.count("startRecording"))
+        {
+            std::string const parameterStr = vm["startRecording"].as<std::string>();
+            std::cout << "Sent command to start recording to " << parameterStr << " : " << _startRecording(socketFileDescriptor, parameterStr) << std::endl;
+        }
+        if (vm.count("takeScreenshot"))
+        {
+            std::string const parameterStr = vm["takeScreenshot"].as<std::string>();
+            std::cout << "Sent command to take screenshot to " << parameterStr << " : " << _takeScreenshot(socketFileDescriptor, parameterStr) << std::endl;
+        }
     }
 }
 
@@ -214,6 +332,11 @@ int main(int argc, char *argv[])
         desc.add_options()("help", "Produce this message");
         desc.add_options()("shutter", "Trigger the shutter");
         desc.add_options()("status", "Get the status of the camera");
+        desc.add_options()("startRecording", boost::program_options::value<std::string>(),
+                           "Begin recording to a specified file");
+        desc.add_options()("stopRecording", "Stop recording to a file");
+        desc.add_options()("takeScreenshot", boost::program_options::value<std::string>(),
+                           "Save a screenshot of the current frame to a file");
         desc.add_options()("zoomRate", boost::program_options::value<std::string>(),
                            "Choose the zoom rate (a floating point number)\n"
                            "negative = zooming out\n"
@@ -222,7 +345,7 @@ int main(int argc, char *argv[])
         desc.add_options()("zoom", boost::program_options::value<std::string>(),
                            "Instantly set the current zoom (a floating point number)");
         desc.add_options()("maxZoom", boost::program_options::value<std::string>(),
-                            "Set the maximum zoom (a floating point number)");
+                           "Set the maximum zoom (a floating point number)");
         desc.add_options()("getZoom", "Get a string indicating current zoom parameters");
         desc.add_options()("colorPalette", boost::program_options::value<std::string>(),
                            "Choose the color palette\n"

@@ -124,7 +124,8 @@ The full list of available startup options:
                             FRAME_FORMAT_GRAYSCALE               = 0x40
                             FRAME_FORMAT_COLOR_ARGB8888          = 0x80  
                             (default)
-                            FRAME_FORMAT_COLOR_RGB565            = 0x100
+                            FRAME_FORMAT_COLOR_RGB565            = 0x100 (not 
+                            yet implemented)
                             FRAME_FORMAT_COLOR_AYUV              = 0x200 (not 
                             yet implemented)
                             FRAME_FORMAT_COLOR_YUY2              = 0x400 (not 
@@ -163,6 +164,9 @@ echotherm --colorPalette 1 --shutterMode 0
   --help                    Produce this message
   --shutter                 Trigger the shutter
   --status                  Get the status of the camera
+  --startRecording arg      Begin recording to a specified file
+  --stopRecording           Stop recording to a file
+  --takeScreenshot arg      Save a screenshot of the current frame to a file
   --zoomRate arg            Choose the zoom rate (a floating point number)
                             negative = zooming out
                             zero     = not changing zoom
