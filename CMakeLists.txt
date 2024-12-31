@@ -18,6 +18,8 @@ add_executable(${PROJECT_NAME}
 	src/EchoThermCamera.cpp
 )
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+
 target_compile_features(${PROJECT_NAME} 
 	PRIVATE cxx_std_17
 )
