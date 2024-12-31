@@ -13,6 +13,7 @@
 
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/lexical_cast.hpp>
 
 #include "EchoThermCamera.h"
 
@@ -103,8 +104,19 @@ namespace
         // first, trim the string
         // then try to parse as an double
         boost::trim(str);
-        auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), *p_double);
-        return ec;
+        try
+        {
+            *p_double = boost::lexical_cast<double>(str);
+        }
+        catch(const std::exception& e)
+        {
+            return std::errc::invalid_argument;
+        }
+        return std::errc{};
+
+        //removed because it didn't work on ubuntu 20
+        //auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), *p_double);
+        //return ec;
     }
 
     void _handleTerminationSignal(int signal)
