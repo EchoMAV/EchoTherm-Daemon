@@ -38,6 +38,7 @@ apt install -y \
     gstreamer1.0-gtk3 \
     gstreamer1.0-qt5 \
     gstreamer1.0-pulseaudio \
+    libopencv \
     libopencv-dev
 # download the v4l2loopback stuff and place it into /usr/src
 version=0.12.5

@@ -1,6 +1,20 @@
-# EchoTherm Software Package
+# EchoTherm 320 Software Package
 
-The EchoTherm camera is a 320x256 pixel ultra-miniature and ultra-light weight thermal camera. It is ideal for use in situations where size, weight and cost are driving factors, such as small drones. The EchoTherm Software Package is a collection of utilities to to enable the use the EchoTherm camera on Linux distributions running on ARM64 or x86_64 architectures.
+The EchoTherm camera is a 320x240 pixel ultra-miniature and ultra-light weight thermal camera. It is ideal for use in situations where size, weight and cost are driving factors, such as small drones. The EchoTherm Software Package is a collection of utilities to to enable the use the EchoTherm camera on Linux distributions running on ARM64 or x86_64 architectures.
+
+| Specifications                   | Description                                  |
+|----------------------------------|----------------------------------------------|
+| Microbolometer                   | Uncooled Vanadium Oxide                      |
+| Pixel Pitch                      | 12 Microns                                   |
+| Spectral Response                | 7.8 - 14 microns                             |
+| Sensor Resolution (Array Format) | 320 (h) x 240 (v)                            |
+| Frame Rate                       | 27 Hz                                        |
+| Imaging Range                    | -40 C to 330 C                               |
+| Sensor Sensitivity               | 65 mK (typical), <100 mK (max) @ 25°C        |
+| Non-Uniformity Correction (NUC)  | Automatic or programmable (internal shutter) |
+| Video Output Interfaces          | V4L loopback via USB                         |
+| Supply Voltage                   | 3.3V to 5.0V                                 |
+| Power                            | 300mW                                        |
 
 The EchoTherm software package consists of three major components:
 - The EchoTherm Daemon (echothermd)
