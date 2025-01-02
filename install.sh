@@ -61,7 +61,7 @@ rm -rf build
 mkdir build
 cd build
 # build the application and install it
-cmake ..
+cmake -B . -S ..
 make
 make install
 # build and install the v4l2loopback module
