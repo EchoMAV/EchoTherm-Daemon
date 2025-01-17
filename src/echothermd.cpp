@@ -559,6 +559,29 @@ namespace
                     response = np_camera->takeScreenshot(filePath);
                 }
             }
+            else if (strcmp(p_token, "TAKERADIOMETRICSCREENSHOT") == 0)
+            {
+                if ((p_token = strtok(nullptr, " ")) == nullptr)
+                {
+                    syslog(LOG_NOTICE, "TAKERADIOMETRICSCREENSHOT command received, but no file path was specified.");
+                }
+                else
+                {
+                    
+                    std::filesystem::path filePath;
+                    if ((p_token = strtok(nullptr, " ")) == nullptr)
+                    {
+                        filePath.clear();
+                        syslog(LOG_NOTICE, "TAKERADIOMETRICSCREENSHOT: %s", "default");
+                    }
+                    else    
+                    {
+                        filePath = _desanitizeString(p_token);
+                        syslog(LOG_NOTICE, "TAKERADIOMETRICSCREENSHOT: %s", filePath.string().c_str());
+                    }                    
+                    response = np_camera->takeThermometricScreenshot(filePath);
+                }
+            }
 #if 0
             //Not supported because of crashing issues
             else if (strcmp(p_token, "FORMAT") == 0)

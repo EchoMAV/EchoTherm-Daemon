@@ -14,6 +14,9 @@ namespace cv
     class VideoWriter;
 }
 
+// forward reference
+struct seekframe_t; 
+
 class EchoThermCamera
 {
 public:
@@ -48,6 +51,9 @@ public:
     // COLOR_PALETTE_USER_2    = 11
     // COLOR_PALETTE_USER_3    = 12
     // COLOR_PALETTE_USER_4    = 13
+    void setThermometricFrameFormat(int thermometricFrameFormat);
+    // SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT      = 16 = 0x10
+	// SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6 = 32 = 0x20
     void setColorPalette(int colorPalette);
     // change the shutter mode
     // negative = manual
@@ -100,6 +106,9 @@ public:
     //stop recording
     //return a string indicating success or failure
     std::string stopRecording();
+    //take a radiometic data screenshot of the current frame to the file path
+    //return a string indicating success or failure
+    std::string takeThermometricScreenshot(std::filesystem::path const& filePath);
 
 
 private:
@@ -116,8 +125,6 @@ private:
     ssize_t _writeBytes(void* p_frameData, size_t frameDataSize);
     void _doContinuousZoom();
     void _pushFrame(int cvFrameType, void* p_frameData);
-
-
     std::string m_loopbackDeviceName;
     std::string m_chipId;
     int m_frameFormat;
@@ -145,6 +152,7 @@ private:
     std::condition_variable_any m_shutterClickCondition;
     std::atomic_bool m_shutterClickThreadRunning;
     std::filesystem::path m_screenshotFilePath;
+    std::filesystem::path m_thermometricSreenshotFilePath;
     std::filesystem::path m_videoFilePath;
     std::string m_screenshotStatus;
     mutable std::mutex m_screenshotStatusReadyMut;
@@ -159,4 +167,11 @@ private:
     std::atomic_bool m_recordingThreadRunning;
     std::unique_ptr<cv::VideoWriter> mp_videoWriter;
 
+    int m_frameNum;
+    int m_thermometricFrameFormat;
+    int m_thermometricFrameCapture;  
+    int m_thermometricFrameCaptureBusy;
+    std::filesystem::path m_thermometricScreenshotFilePath;
+    std::filesystem::path m_thermometricScreenshotStatus;
+    int thermometricWrite(seekframe_t* frame);
 };

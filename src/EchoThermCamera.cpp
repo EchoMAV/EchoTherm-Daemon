@@ -8,6 +8,7 @@
 #include <sys/ioctl.h>
 #include <cstring>
 #include <sstream>
+#include <iostream> 
 #include <opencv2/imgproc.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/videoio.hpp>
@@ -26,6 +27,10 @@ EchoThermCamera::EchoThermCamera()
     : m_loopbackDeviceName{},
       m_chipId{},
       m_frameFormat{int(SEEKCAMERA_FRAME_FORMAT_COLOR_ARGB8888)},
+      m_thermometricFrameFormat{int(SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6)},
+      //m_thermometricFrameFormat{int(SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT)},    
+      m_thermometricFrameCapture{0},
+      m_thermometricFrameCaptureBusy{0},
       m_colorPalette{int(SEEKCAMERA_COLOR_PALETTE_WHITE_HOT)},
       m_shutterMode{int(SEEKCAMERA_SHUTTER_MODE_AUTO)},
       m_sharpenFilterMode{int(SEEKCAMERA_FILTER_STATE_DISABLED)},
@@ -50,6 +55,7 @@ EchoThermCamera::EchoThermCamera()
       m_shutterClickCondition{},
       m_shutterClickThreadRunning{false},
       m_screenshotFilePath{},
+      m_thermometricSreenshotFilePath{},
       m_videoFilePath{},
       m_screenshotStatus{},
       m_screenshotStatusReadyMut{},
@@ -121,6 +127,30 @@ void EchoThermCamera::setFrameFormat(int frameFormat)
         case SEEKCAMERA_FRAME_FORMAT_CORRECTED:
         default:
             syslog(LOG_WARNING, "The frame format %d is invalid.", frameFormat);
+            break;
+        }
+    }
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "EXIT  EchoThermCamera::setFrameFormat(%d)", frameFormat);
+#endif
+}
+
+void EchoThermCamera::setThermometricFrameFormat(int thermometricFrameFormat)
+{
+    std::lock_guard<decltype(m_mut)> lock{m_mut};
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "ENTER EchoThermCamera::setFrameFormat(%d)", frameFormat);
+#endif
+    if (thermometricFrameFormat != m_thermometricFrameFormat)
+    {
+        switch (thermometricFrameFormat)
+        {
+	    case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT:
+	    case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6:
+            m_thermometricFrameFormat = thermometricFrameFormat;  // valid mode
+            break;
+        default:
+            syslog(LOG_WARNING, "The thermometric frame format %d is invalid.", thermometricFrameFormat);
             break;
         }
     }
@@ -754,6 +784,55 @@ std::string EchoThermCamera::takeScreenshot(std::filesystem::path const &filePat
     return status;
 }
 
+std::string EchoThermCamera::takeThermometricScreenshot(std::filesystem::path const &filePath)
+{
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "ENTER EchoThermCamera::takeThermometricSreenshot(%s)", filePath.string().c_str());
+#endif
+
+    std::string status;
+    
+    if( filePath.empty()){
+        syslog(LOG_WARNING, "The thermometric filepath name was empty will use default. /Home/Thermometric_datatime.csv");
+        m_thermometricScreenshotFilePath.clear();
+    }
+    else{
+        m_thermometricScreenshotFilePath = filePath ;
+    }
+        
+    m_thermometricScreenshotStatus.clear();
+
+    switch (m_thermometricFrameFormat)
+    {
+	    case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT:
+	    case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6:
+            break;
+        default:
+            m_thermometricFrameFormat = SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6;
+            syslog(LOG_WARNING, "The thermometric frame was invalid, defaulting to format %d.", m_thermometricFrameFormat);
+            break;
+    }
+
+    // this will be handled by a lamda worker initiated by the frame ready callback, just set the flag to trigger
+    
+    if( m_thermometricFrameCaptureBusy)
+    {
+        status = "Failed to take thermometric screenshot on file path " + filePath.string() + " thermometric status is busy";
+        return status;
+    }
+    if( m_thermometricFrameCapture )
+    {
+        status = "Failed to take thermometric screenshot on file path " + filePath.string() + " frame capture was already started and not complete yet";
+        return status;
+    }
+
+    m_thermometricFrameCapture = 1; // set to capture next frame, this is handled in the call back mechanism
+    
+    status = "Ack, Ready to take thermometric screenshot on next valid frame to file path " + filePath.string() ;
+    return status;
+}
+
+
 std::string EchoThermCamera::stopRecording()
 {
 #ifdef DEBUG
@@ -883,9 +962,16 @@ void EchoThermCamera::_openSession(bool reconnect)
     auto status = SEEKCAMERA_SUCCESS;
     m_screenshotFilePath.clear();
     m_screenshotStatus.clear();
+
     m_videoFilePath.clear();
     m_recordingStatus.clear();
     m_recordingFrameQueue.clear();
+
+    auto thermometricStatus = SEEKCAMERA_SUCCESS;
+    m_thermometricScreenshotFilePath.clear();
+    m_thermometricScreenshotStatus.clear();
+
+    
     if (!reconnect)
     {
         status = seekcamera_register_frame_available_callback((seekcamera_t *)mp_camera,
@@ -894,9 +980,11 @@ void EchoThermCamera::_openSession(bool reconnect)
                                                                   auto *p_this = (EchoThermCamera *)p_userData;
                                                                   std::lock_guard<decltype(p_this->m_mut)> lock{p_this->m_mut};
                                                                   seekframe_t *p_frame = nullptr;
+                                                              
                                                                   // TODO: support the ability to capture multiple formats
                                                                   // For example, you can pull YUY2 data AND thermography data
-                                                                  // You'd write the YUY2 data to the frame and you'd write the thermography data to a CSV
+                                                                  // You'd write the YUY2 data to the frame and you'd write the thermography data to a CSV                                         
+#if 1 
                                                                   auto const status = seekcamera_frame_get_frame_by_format(p_cameraFrame, (seekcamera_frame_format_t)p_this->m_frameFormat, &p_frame);
                                                                   if (status == SEEKCAMERA_SUCCESS)
                                                                   {
@@ -922,6 +1010,59 @@ void EchoThermCamera::_openSession(bool reconnect)
                                                                   {
                                                                       syslog(LOG_ERR, "Failed to get frame: %s.", seekcamera_error_get_str(status));
                                                                   }
+#endif                                                                  
+                                                                  //-------------------------------------------------------------------------------------
+                                                                  // to capture one frame of thermometric data
+                                                                  // capture flag is set to true , will wait until finished writing last frame
+                                                                  // syslog(LOG_ERR, "frame %d",p_this->m_frameNum++);
+                                                                  // we will get one frame at the thermometricFrameFormat specified 
+                                                                  // if successful we pass this one frame onto the csv writer thread
+                                                                  if( p_this->m_thermometricFrameCapture == 1 && 
+                                                                      p_this->m_thermometricFrameCaptureBusy == 0 ) 
+                                                                  { 
+                                                                    seekframe_t *p_rframe = nullptr;
+
+                                                                    //p_frame = nullptr; //*** ptr must be null to capture with
+                                                                    p_this->m_thermometricFrameCapture = 0; // reset the capture flag for next request
+                                                                    p_this->m_thermometricFrameCaptureBusy = 1; // busy until were are done copy or error
+                                                                    
+                                                                    //TODO test force format
+                                                                    //p_this->m_thermometricFrameFormat = p_this->m_frameFormat ;
+                                                                    
+                                                                    auto const thermometricStatus = seekcamera_frame_get_frame_by_format(
+                                                                        p_cameraFrame, 
+                                                                        (seekcamera_frame_format_t)p_this->m_thermometricFrameFormat, 
+                                                                        &p_rframe );
+                                                                    
+                                                                    if (thermometricStatus == SEEKCAMERA_SUCCESS)
+                                                                    {
+                                                                        // get data from p_frame
+                                                                        // dont spend time here writing, copy data and start worker to process
+                                                                        // set a busy flag to prevent next request from writing until this frame is complete
+                                                                        // this is cleared by writer when finished
+                                                                        // text writer is somewhat slower, so possible this takes longer than next frame capture
+                                                                        
+                                                                        // copy data 
+                                                                        // pass configuration to lamba
+                                                                        if( p_this->thermometricWrite(p_rframe) == EXIT_SUCCESS )
+                                                                        {
+                                                                            syslog(LOG_ERR, "thermometric frame captured to file"); // log to verify logic
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            syslog(LOG_ERR, "thermometric frame failed to save to file"); // log to verify logic
+                                                                        }
+                                                                        // TODO 
+                                                                        p_this->m_thermometricFrameCaptureBusy = 0; // clear once copy is complete, todo make lamda function clear this flag
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        syslog(LOG_ERR, "*thermometric frame capture triggered: format %d",p_this->m_thermometricFrameFormat);
+                                                                        syslog(LOG_ERR, "Failed to get radiometic frame: %s.", seekcamera_error_get_str(thermometricStatus));                                                                       
+                                                                        p_this->m_thermometricFrameCaptureBusy = 0; // clear on error, nothing we can do?
+                                                                    }
+
+                                                                  } // end if write thermometric frame
                                                               },
                                                               (void *)this);
     }
@@ -931,7 +1072,8 @@ void EchoThermCamera::_openSession(bool reconnect)
         if (status == SEEKCAMERA_SUCCESS)
         {
             // Start the capture session.
-            status = seekcamera_capture_session_start((seekcamera_t *)mp_camera, m_frameFormat);
+            status = seekcamera_capture_session_start((seekcamera_t *)mp_camera, m_frameFormat | m_thermometricFrameFormat);
+            
             if (status == SEEKCAMERA_SUCCESS)
             {
                 if (auto const shutterStatus = seekcamera_set_shutter_mode((seekcamera_t *)mp_camera, (seekcamera_shutter_mode_t)m_shutterMode); shutterStatus != SEEKCAMERA_SUCCESS)
@@ -1373,4 +1515,169 @@ ssize_t EchoThermCamera::_writeBytes(void *p_frameData, size_t frameDataSize)
         }
     }
     return bytesWritten;
+}
+
+int EchoThermCamera::thermometricWrite(seekframe_t* frame)
+{
+	// Log each header value to the CSV file.
+	// See the documentation for a description of the header.
+	seekcamera_frame_header_t* header = (seekcamera_frame_header_t*)seekframe_get_header(frame);
+
+    if( header == nullptr )
+    {
+        return EXIT_FAILURE;
+    }
+
+    time_t timestamp_sec = (time_t)(header->timestamp_utc_ns / 1e9);
+
+    // Create a timestamp string in the format YYYY_MM_DD_HH_MM_SS
+    std::ostringstream oss;
+    struct tm* utc_time = gmtime(&timestamp_sec);
+    if (utc_time) {
+        oss << std::put_time(utc_time, "%Y_%m_%d_%H_%M_%S");
+    } else {
+        std::cerr << "Error: Unable to convert timestamp.\n";
+        return EXIT_FAILURE;
+    }
+    std::string timeStr = oss.str();
+
+    // Declare fileName in a broader scope
+    std::string fileName = "ThermometricData_" + timeStr + ".csv";
+
+    // File path handling
+    std::string filePath = m_thermometricScreenshotFilePath;
+    if (filePath.empty()) {
+        // Get the HOME directory
+        const char* home = std::getenv("HOME");
+        if (home == nullptr) {
+            std::cerr << "Error: HOME environment variable is not set.\n";
+            return EXIT_FAILURE;
+        }
+
+        // Construct the full file path using std::filesystem::path
+        std::filesystem::path homePath(home);
+        filePath = (homePath / fileName).string();  // Combine paths safely
+    } else {
+        // Extract fileName from the provided path
+        std::filesystem::path providedPath(filePath);
+        fileName = providedPath.filename().string();  // Extract the file name
+    }
+
+    // Open the file
+    std::FILE* fp = std::fopen(filePath.c_str(), "w");
+    if (fp == nullptr) {
+        std::perror("Error opening file");
+        return EXIT_FAILURE;
+    }
+
+    // write identifing information at top of file
+    fprintf(fp,"filename, %s\n", fileName.c_str());
+    fprintf(fp,"frame,%u\n", header->fpa_frame_count);
+    oss.clear();
+    oss << std::put_time(utc_time, "%Y-%m-%d %H:%M:%S");
+    fprintf(fp,"utc_time,%s\n", oss.str().c_str());
+    fputc('\n', fp);
+
+    int headerOpt = 1 ;
+    if( headerOpt )
+    {
+        fprintf(fp, "Header Data:\n");
+	    fprintf(fp, "sentinel,%u\n", header->sentinel);
+	    fprintf(fp, "version,%u\n", header->version);
+	    fprintf(fp, "type,%u\n", header->type);
+	    fprintf(fp, "width,%u\n", header->width);
+	    fprintf(fp, "height,%u\n", header->height);
+	    fprintf(fp, "channels,%u\n", header->channels);
+	    fprintf(fp, "pixel_depth,%u\n", header->pixel_depth);
+	    fprintf(fp, "pixel_padding,%u\n", header->pixel_padding);
+	    fprintf(fp, "line_stride,%u\n", header->line_stride);
+	    fprintf(fp, "line_padding,%u\n", header->line_padding);
+	    fprintf(fp, "header_size,%u\n", header->header_size);
+        fprintf(fp, "timestamp_utc_ns,%zu\n", header->timestamp_utc_ns);    
+	    fprintf(fp, "chipid,%s\n", header->chipid);
+	    fprintf(fp, "serial_number,%s\n", header->serial_number);
+	    fprintf(fp, "core_part_number,%s\n", header->core_part_number);
+	    fprintf(fp, "firmware_version,%u.%u.%u.%u\n", header->firmware_version[0], header->firmware_version[1], header->firmware_version[2], header->firmware_version[3]);
+	    fprintf(fp, "io_type,%u\n", header->io_type);
+	    fprintf(fp, "fpa_frame_count,%u\n", header->fpa_frame_count);
+	    fprintf(fp, "fpa_diode_count,%u\n", header->fpa_diode_count);
+	    fprintf(fp, "environment_temperature,%f\n", header->environment_temperature);
+	    fprintf(fp, "thermography_min_x,%u\n", header->thermography_min_x);
+	    fprintf(fp, "thermography_min_y,%u\n", header->thermography_min_y);
+	    fprintf(fp, "thermography_min_value,%f\n", header->thermography_min_value);
+	    fprintf(fp, "thermography_max_x,%u\n", header->thermography_max_x);
+	    fprintf(fp, "thermography_max_y,%u\n", header->thermography_max_y);
+	    fprintf(fp, "thermography_max_value,%f\n", header->thermography_max_value);
+	    fprintf(fp, "thermography_spot_x,%u\n", header->thermography_spot_x);
+	    fprintf(fp, "thermography_spot_y,%u\n", header->thermography_spot_y);
+	    fprintf(fp, "thermography_spot_value,%f\n", header->thermography_spot_value);
+	    fprintf(fp, "agc_mode,%u\n", header->agc_mode);
+	    fprintf(fp, "histeq_agc_num_bins,%u\n", header->histeq_agc_num_bins);
+	    fprintf(fp, "histeq_agc_bin_width,%u\n", header->histeq_agc_bin_width);
+	    fprintf(fp, "histeq_agc_gain_limit_factor,%f\n", header->histeq_agc_gain_limit_factor);
+	    //for(size_t i = 0; i < sizeof(header->histeq_agc_reserved) / sizeof(header->histeq_agc_reserved[0]); ++i)
+	    //{
+	    //	fprintf(fp, "histeq_agc_reserved[64],");
+	    //}
+	    fprintf(fp, "linear_agc_min,%f\n", header->linear_agc_min);
+	    fprintf(fp, "linear_agc_max,%f\n", header->linear_agc_max);
+	    //for(size_t i = 0; i < sizeof(header->linear_agc_reserved) / sizeof(header->linear_agc_reserved[0]); ++i)
+	    //{
+        //		fprintf(fp, "linear_agc_reserved[32],");
+	    //}
+	    fprintf(fp, "gradient_correction_filter_state,%u\n", header->gradient_correction_filter_state);
+	    fprintf(fp, "flat_scene_correction_filter_state,%u\n", header->flat_scene_correction_filter_state);
+        //--------------------------------------
+	    fputc('\n', fp);
+    }
+
+    fprintf(fp, "Frame Data:\n");
+    fprintf(fp, "rows,%u\n",header->height);
+    fprintf(fp, "cols,%u\n",header->width);
+    switch( m_thermometricFrameFormat)
+    {
+        case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6:
+             fprintf(fp,"format,FIXED_10_6\n");
+             break;
+        case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT:
+            fprintf(fp,"format,FLOAT\n");
+            break;
+        default:
+            fprintf(fp,"format,UND\n");
+            break;
+    }
+    fprintf(fp, "units,Deg C\n");
+
+	// Log each temperature value to the CSV file.
+	// See the documentation for a description of the frame layout.
+	for(size_t y = 0; y < header->height; ++y)
+	{         
+        void* row = seekframe_get_row(frame, y);             
+        for(size_t x = 0; x < header->width; ++x)
+		{   
+		    float temperature_degrees_c = 0.0;
+            switch( m_thermometricFrameFormat)
+            {
+                case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6:
+                    // Interpret the row data as integers for FIXED_10_6 format
+                    {
+                        const int16_t* pixels = (const int16_t*)row;
+                        temperature_degrees_c = pixels[x] / 64.0f - 40.0f;  // Apply fixed-point scaling
+                    }
+                    fprintf(fp, "%10.6f,", temperature_degrees_c);
+                    break;
+                case SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT:
+                    // Interpret the row data as floats for FLOAT format
+                    {
+                        const float* pixels = (const float*)row;
+                        temperature_degrees_c = pixels[x];
+                    }
+                    fprintf(fp, "%.1f,", temperature_degrees_c);
+                    break;
+            }
+        }
+        fputc('\n', fp);
+	}
+    fclose(fp);
+    return EXIT_SUCCESS;
 }

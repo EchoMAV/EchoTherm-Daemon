@@ -159,6 +159,34 @@ namespace
         return statusStr;
     }
 
+    std::string _takeRadiometricScreenshot(int const socketFileDescriptor, std::string const &filePath)
+    {
+        std::string statusStr;
+        std::string santizedFilePath = _sanitizeString(filePath);
+
+        std::string const commandStr = "TAKERADIOMETRICSCREENSHOT " + santizedFilePath + '|';
+        auto const numSent = write(socketFileDescriptor, commandStr.c_str(), commandStr.length());
+        if (numSent < 0)
+        {
+            statusStr = "Error sending status request";
+        }
+        else
+        {
+            char p_buffer[256] = {0};
+            auto const numRead = read(socketFileDescriptor, p_buffer, 255);
+            if (numRead < 0)
+            {
+                statusStr = "Error receiving status response";
+            }
+            else
+            {
+                statusStr = std::string(p_buffer);
+            }
+        }
+        return statusStr;
+    }
+
+
     bool _openSocket(int *p_socketFileDescriptor)
     {
         bool returnVal = true;
@@ -319,6 +347,11 @@ namespace
             std::string const parameterStr = vm["takeScreenshot"].as<std::string>();
             std::cout << "Sent command to take screenshot to " << parameterStr << " : " << _takeScreenshot(socketFileDescriptor, parameterStr) << std::endl;
         }
+        if (vm.count("takeRadiometricScreenshot"))
+        {
+            std::string const parameterStr = vm["takeRadiometricScreenshot"].as<std::string>();
+            std::cout << "Sent command to take radiometric screenshot to " << parameterStr << std::endl << _takeRadiometricScreenshot(socketFileDescriptor, parameterStr) << std::endl;
+        }
     }
 }
 
@@ -337,6 +370,8 @@ int main(int argc, char *argv[])
         desc.add_options()("stopRecording", "Stop recording to a file");
         desc.add_options()("takeScreenshot", boost::program_options::value<std::string>(),
                            "Save a screenshot of the current frame to a file");
+        desc.add_options()("takeRadiometricScreenshot", boost::program_options::value<std::string>(),
+                           "Save a radiometric screenshot of the current frame to a file");
         desc.add_options()("zoomRate", boost::program_options::value<std::string>(),
                            "Choose the zoom rate (a floating point number)\n"
                            "negative = zooming out\n"
