@@ -3,6 +3,8 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/epoll.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include <csignal>
 #include <cstring>
@@ -10,6 +12,7 @@
 #include <iostream>
 #include <regex>
 #include <filesystem>
+#include <signal.h>
 
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
@@ -45,12 +48,13 @@ namespace
         // SIGQUIT,
         // SIGSEGV,
         SIGTERM,
+        // SIGKILL, // can not be caught blocked or ignored
         // SIGTSTP,
     };
 
     std::unique_ptr<EchoThermCamera> np_camera;
 
-      std::string _desanitizeString(std::string const &input)
+    std::string _desanitizeString(std::string const &input)
     {
         std::string output = input;
         if (output.size() >= 3)
@@ -119,27 +123,43 @@ namespace
         //return ec;
     }
 
-    void _handleTerminationSignal(int signal)
+    void _handleSignal(int signal)
     {
-        syslog(LOG_NOTICE, "Received killing signal %d, shutting down daemon...", signal);
-        remove(np_lockFile);
-        closelog();
-        n_running = false;
+        syslog(LOG_NOTICE, "Received signal(%d) ", signal);
+        switch( signal ){   
+            case SIGTERM:
+                syslog(LOG_NOTICE, "Terminate process...");         
+                if( np_camera ){
+                    syslog(LOG_NOTICE, "closing session...");
+                   np_camera->_closeSession();
+                }
+                n_running = false;
+                // we should exit normally/nice othewise kill will be called to force it
+
+                // remove the lockfile 
+                remove(np_lockFile);
+                closelog();
+                break;
+            default:
+                syslog(LOG_NOTICE, "Warning: Unhandled signal");
+        }      
     }
 
-    bool _setTerminationSignalAction()
+    bool _setSignalAction()
     {
         auto returnVal = true;
         for (auto signal : np_catchTheseSignals)
         {
             struct sigaction signalAction
-            {
+            {                
             };
+
             std::memset(&signalAction, 0, sizeof(signalAction));
-            signalAction.sa_handler = _handleTerminationSignal;
+            signalAction.sa_handler = _handleSignal;
             sigemptyset(&signalAction.sa_mask);
             if (sigaction(signal, &signalAction, nullptr) == -1)
             {
+                std::cout << "sigaction failed for signal " << signal << std::endl;
                 syslog(LOG_ERR, "sigaction failed for signal %d: %m", signal);
                 returnVal = false;
                 break;
@@ -201,6 +221,7 @@ namespace
         return returnVal;
     }
 
+#if 0
     int _startDaemon()
     {
         int returnCode = -1;
@@ -215,10 +236,11 @@ namespace
             }
             else if (processId > 0)
             {
-                // let the parent terminate
+                // Success, let the parent terminate
                 returnCode = EXIT_SUCCESS;
                 break;
             }
+
             // On success: The child process becomes session leader
             if (setsid() == -1)
             {
@@ -229,7 +251,8 @@ namespace
             // Catch, ignore and handle signals
             signal(SIGCHLD, SIG_IGN);
             signal(SIGHUP, SIG_IGN);
-            // Fork off for the second time
+
+            // Second fork to ensure daemon cannot reacquire terminal
             if (auto const processId = fork(); processId == -1)
             {
                 syslog(LOG_ERR, "Failed to fork: %m");
@@ -242,7 +265,9 @@ namespace
                 returnCode = EXIT_SUCCESS;
                 break;
             }
-            // Set new file permissions
+
+
+            // Change file mode mask (umask) to prevent inherited permissions
             umask(0);
             // Change the working directory to the root directory
             // or another appropriated directory
@@ -255,6 +280,65 @@ namespace
         } while (false);
         return returnCode;
     }
+#endif
+
+    // standard daemon creator
+    // creates a fork of a fork to create a grandchild that is isolated
+    // the other 2 process are terminated leaving the orphaned process to run in background
+    int _startDaemon()
+    {
+       // First fork
+        pid_t pid = fork();
+        if (pid < 0) {
+            syslog(LOG_ERR, "Failed to fork: %s", strerror(errno));
+            return -1;
+        }
+        if (pid > 0) {
+            // Parent process
+            return 1; // should return to exit program, we indicate parent returned
+        }
+        // Create new session
+        if (setsid() < 0) {
+            syslog(LOG_ERR, "Failed to create new session: %s", strerror(errno));
+            return -1;
+        }
+        // Second fork
+        pid = fork();
+        if (pid < 0) {
+            syslog(LOG_ERR, "Failed second fork: %s", strerror(errno));
+            return -1;
+        }
+        if (pid > 0) {
+            // Parent of second fork
+            // exit(2) ; //EXIT_SUCCESS); // 0, should just exit program, we dont need this
+            return 2;
+        }
+        // the grandchild should be the one continuing
+        // Set new file permissions
+        umask(0);
+        // Change working directory
+        if (chdir("/") < 0) {
+            syslog(LOG_ERR, "Failed to change directory: %s", strerror(errno));
+            return -1;
+        }
+        // Close and redirect file descriptors
+        for (int x = sysconf(_SC_OPEN_MAX); x >= 0; x--) {
+            close(x);
+        }
+        int fd = open("/dev/null", O_RDWR);
+        if (fd < 0) {
+            syslog(LOG_ERR, "Failed to open /dev/null: %s", strerror(errno));
+            return -1;
+        }
+        dup2(fd, STDIN_FILENO);
+        dup2(fd, STDOUT_FILENO);
+        dup2(fd, STDERR_FILENO);
+        if (fd > STDERR_FILENO) {
+            close(fd);
+        }
+        return 0;
+    }
+
 
     std::string _parseCommand(char const *const p_command)
     {
@@ -559,28 +643,47 @@ namespace
                     response = np_camera->takeScreenshot(filePath);
                 }
             }
-            else if (strcmp(p_token, "TAKERADIOMETRICSCREENSHOT") == 0)
+            else if (strcmp(p_token, "SETRADIOMETRICFRAMEFORMAT") == 0)
             {
                 if ((p_token = strtok(nullptr, " ")) == nullptr)
                 {
-                    syslog(LOG_NOTICE, "TAKERADIOMETRICSCREENSHOT command received, but no file path was specified.");
+                    syslog(LOG_NOTICE, "SETRADIOMETRICFRAMEFORMAT command received, but no format specified.");
                 }
                 else
                 {
-                    
-                    std::filesystem::path filePath;
-                    if ((p_token = strtok(nullptr, " ")) == nullptr)
+                    int format = 0;
+                    auto errorCode = _parseInt(p_token, &format);
+                    if (errorCode == std::errc::invalid_argument)
                     {
-                        filePath.clear();
-                        syslog(LOG_NOTICE, "TAKERADIOMETRICSCREENSHOT: %s", "default");
+                        syslog(LOG_ERR, "FORMAT cannot be set to %s because it is not a number.", p_token);
                     }
-                    else    
+                    else if (errorCode == std::errc::result_out_of_range)
                     {
-                        filePath = _desanitizeString(p_token);
-                        syslog(LOG_NOTICE, "TAKERADIOMETRICSCREENSHOT: %s", filePath.string().c_str());
-                    }                    
-                    response = np_camera->takeThermometricScreenshot(filePath);
+                        syslog(LOG_ERR, "FORMAT cannot be set to %s because it is out of range.", p_token);
+                    }
+                    else
+                    {
+                        syslog(LOG_NOTICE, "SETRADIOMETRICFRAMEFORMAT: %d", format );
+                        np_camera->setRadiometricFrameFormat(format);
+                    }
                 }
+            }
+            else if (strcmp(p_token, "TAKERADIOMETRICSCREENSHOT") == 0)
+            {
+                std::filesystem::path filePath;           
+                // Get the next token (possible filename)
+                p_token = strtok(nullptr, " ");   
+                if (p_token == nullptr || strlen(p_token) == 0)
+                {
+                    syslog(LOG_NOTICE, "TAKERADIOMETRICSCREENSHOT: No file path specified, will use RadiometricData_UTC as default");
+                    filePath = "";  // emplty will force default filename to be RadiometricData_[UTC].csv
+                }
+                else
+                {
+                    filePath = _desanitizeString(p_token);
+                    syslog(LOG_NOTICE, "TAKERADIOMETRICSCREENSHOT: File path set to %s", filePath.string().c_str());
+                }
+                response = np_camera->takeRadiometricScreenshot(filePath);
             }
 #if 0
             //Not supported because of crashing issues
@@ -774,21 +877,178 @@ namespace
     }
 }
 
+int is_process_running(pid_t pid) {
+    if (kill(pid, 0) == 0) {
+        return 1; // Process is running
+    } else if (errno == ESRCH) {
+        return 0; // Process is not running
+    } else {
+        return -1; // Error occurred
+    }
+}
+
+// Function to get all child PIDs recursively
+void getChildProcesses(int parent_pid, std::vector<int>& children) {
+    char command[50];
+    snprintf(command, sizeof(command), "pgrep -P %d", parent_pid);
+
+    FILE* pipe = popen(command, "r");
+    if (!pipe) {
+        std::cerr << "Failed to run pgrep" << std::endl;
+        return;
+    }
+
+    char buffer[128];
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        int child_pid = std::stoi(buffer);
+        children.push_back(child_pid);
+        getChildProcesses(child_pid, children);  // Recursively get sub-children
+    }
+    pclose(pipe);
+}
+
+int terminate_process(pid_t pid, int waitSeconds) {
+    if (kill(pid, SIGTERM) == -1) {
+        return 2;  // Failed to send SIGTERM
+    }
+    time_t start_time = time(NULL);
+    int elapsedTime = 0;
+    while ( elapsedTime < waitSeconds ) {
+        std::cout << "\r - (" << (waitSeconds - elapsedTime) << ")" << std::flush;
+        int result = is_process_running(pid);
+        if (result == 0) {
+            return 0;  // Process not running, success
+        } 
+        else{
+            if (result == -1) {
+               return 3;  // Error occurred
+            }
+            // else running
+        }        
+        sleep(1);
+        elapsedTime = time(NULL) - start_time;
+    }
+    return 1;  // Timeout occurred
+}
+
+int kill_process(pid_t pid, int waitSeconds) {
+    
+    if (kill(pid, SIGKILL) == -1) {
+        return 2;  // Failed to send SIGKILL
+    }
+    time_t start_time = time(NULL);
+    int elapsedTime = 0;
+    while ( elapsedTime < waitSeconds) {
+        std::cout << "\r - (" << (waitSeconds - elapsedTime) << ")" << std::flush;
+        int result = is_process_running(pid); 
+        if (result == 0) {
+            return 0;  // Process terminated, success
+        } 
+        else{ 
+            if (result == -1) {
+              return 3;  // Error occurred
+            }
+            // else still running
+        }
+        sleep(1);
+        elapsedTime = time(NULL) - start_time;
+    }
+    return 1;  // Timeout occurred
+}
+
+int killOtherInstances(const char* processName) {
+
+    std::vector<int> pids;
+    char buffer[128];
+    pid_t thisPid = getpid();
+
+    // Step 1: Get all PIDs of the process using 'pgrep'
+    FILE* pipe = popen(("pgrep " + std::string(processName)).c_str(), "r");
+    if (!pipe) {
+        std::cerr << "Failed to run pgrep" << std::endl;
+        return 0;
+    }
+
+    // Step 2: Read PIDs from the command output
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        int pid = std::stoi(buffer);
+        if( pid != thisPid ){ // all but this one
+            pids.push_back(pid);
+        }
+    }
+    pclose(pipe);
+
+    if( pids.size() == 0 ){
+        std::cout << "No other echothermd() processes found to kill" << std::endl ;
+        return 0 ;
+    }
+    if( pids.size() == 1){
+        std::cout << "Killing echothermd(), please wait..." << std::endl;
+    }
+    else{
+        std::cout << "Killing (" << pids.size() << ") echothermd() processes, please wait..." << std::endl;
+    }
+
+    // Iterate through the list and kill other instances
+    for (int pid : pids) {
+
+        std::vector<int> child_pids;
+        getChildProcesses(pid, child_pids);
+
+        for (int child_pid : child_pids) {
+            if( child_pid == thisPid ) continue ; // dont worry about ourself, we exit when complete
+            std::cout << "Terminating child process(" << child_pid << ")\n";
+            int result = terminate_process(child_pid,15); // wait up to 15 secs          
+            if( result != 0 ){// timeout or other error, just kill it
+                std::cout << " - Terminate request failed(" << result << ")\n" << std::flush;
+                std::cout << "Kill child process:\n" << std::flush;
+                result = kill_process(child_pid,5); // wait 5
+                if( result != 0){
+                    std::cout << "\r - Error " << std::endl << std::flush; // not the flush was added to get \r working correctly
+                }
+                else{
+                    std::cout << "\r - Success" << std::endl << std::flush;
+                } 
+            }
+            else{
+                std::cout << "\r - Success" << std::endl << std::flush;
+            }
+        }
+
+        std::cout << "Terminating process(" << pid << ")\n" << std::flush;;    
+        int result = terminate_process(pid,15); // wait up to 15 secs          
+        if( result != 0 ){// timeout or other error, just kill it
+            std::cout << " - Terminate request failed(" << result << ")\n" << std::flush;;
+            std::cout << "Kill process:\n" << std::flush;
+            result = kill_process(pid,5); // wait 5 secs 
+            if( result != 0){
+                std::cout << "\r - Error(" << result << ")\n" << std::flush;                            }
+            else{
+                std::cout << "\r - Success" << std::endl << std::flush;;
+            }    
+        }   
+        else{
+            std::cout << "\r - Success" << std::endl << std::flush;;
+        } 
+    }
+    std::cout << std::endl;
+
+    return 0; // return value is not significant we are terminating anyway
+}
+
 int main(int argc, char *argv[])
-{
+{  
     int clientFileDescriptor = -1;
     int epollFileDescriptor = -1;
     int serverFileDescriptor = -1;
     int returnCode = EXIT_SUCCESS;
+    
+    bool isDaemonProcess = false;
     do
     {
         // Open the log file
         openlog(np_logName, LOG_PID, LOG_DAEMON);
-        if (!_setTerminationSignalAction())
-        {
-            returnCode = EXIT_FAILURE;
-            break;
-        }
+
         boost::program_options::options_description desc("Allowed options");
         desc.add_options()("help", "Produce this message");
         desc.add_options()("daemon", "Start the process as a daemon");
@@ -857,39 +1117,88 @@ int main(int argc, char *argv[])
             break;
         }
         n_isDaemon = (bool)vm.count("daemon");
+
         if (vm.count("kill"))
-        {
-            syslog(LOG_NOTICE, "Killing the existing instance...\nPlease run echothermd again if you wish to restart the daemon.");
+        {            
+            syslog(LOG_NOTICE, "Killing instance(s) of echothermd...\nPlease run echothermd again if you wish to restart the daemon.");
+            // this kills the daemon running in the background
+            returnCode = killOtherInstances("echothermd"); // we will exit ourselves normally
+
             remove(np_lockFile);
+            sync(); // finish writing log
             closelog();
             n_running = false;
-            returnCode = system("pkill -9 echothermd");
+            // we exit normally
             break;
         }
-        std::cout << "\nStarting EchoTherm daemon, v1.0.0 ©EchoMAV, LLC 2024\nTo view log output, journalctl -t echothermd\nTo tail log output, journalctl -ft echothermd" << std::endl;
-        syslog(LOG_NOTICE, "Starting EchoTherm daemon, v1.0.0 ©EchoMAV, LLC 2024");
+ 
+        std::cout << "\nStarting EchoTherm daemon, v1.0.1 ©EchoMAV, LLC 2024\n";
+        std::cout << "To view log output, journalctl -t echothermd\nTo tail log output, journalctl -ft echothermd" << std::endl;
+        syslog(LOG_NOTICE, "\nStarting EchoTherm daemon, v1.0.1 ©EchoMAV, LLC 2024");
+   
         // Check that another instance isn't already running by checking for a lock file
         if (!_checkLock())
         {
             if (!n_isDaemon)
             {
-                std::cerr << "Error: another instance of the program is already running OR the /tmp/echothermd.lock is still in place from a previous call to a non-daemon process of echothermd. .\nTo fix this, run echothermd --kill" << std::endl;
+                std::cout << "Error: another instance of the program is already running OR the /tmp/echothermd.lock is still in place from a previous call to a non-daemon process of echothermd. .\nTo fix this, run echothermd --kill" << std::endl;
             }
             syslog(LOG_ERR, "Error: another instance of the program is already running OR the /tmp/echothermd.lock is still in place from a previous call to a non-daemon process of echothermd. .\nTo fix this, run echothermd --kill");
+            std::cout << "Error: another instance of the program is already running OR the /tmp/echothermd.lock\nis still in place from a previous call to a non-daemon process of echothermd. .\nTo fix this, run echothermd --kill\n";
+
             returnCode = EXIT_FAILURE;
             break;
         }
+        std::cout << "\n";
+
+        if (!_setSignalAction()) // waited until now to install this until we are the daemon
+        {
+            std::cout << "Failed to install the signal handler\n";
+            returnCode = EXIT_FAILURE;
+            break;
+        }
+
         if (!_isPortAvailable(n_port))
         {
             syslog(LOG_ERR, "Error: port %d is not available for binding...", n_port);
             returnCode = EXIT_FAILURE;
             break;
         }
-        if (n_isDaemon && (returnCode = _startDaemon()) >= 0)
-        {
-            // either something went wrong or this is the parent process
-            break;
+        
+        if (n_isDaemon) {
+            returnCode = _startDaemon();
+            switch (returnCode) {
+                case -1:
+                    // Error occurred
+                    std::cerr << "Error: Failed to start daemon" << std::endl;
+                    break;            
+                case 1:
+                    // Parent process, exit successfully, normal behaviour
+                    #ifdef DEBUG
+                        std::cout << "Parent process exiting" << std::endl;
+                    #endif
+                    break;   
+                case 2:
+                    // Child process, exit successfully, normal behaviour
+                    #ifdef DEBUG
+                        std::cout << "Child process exiting" << std::endl;
+                    #endif
+                    break;                             
+                case 0: // grandchild
+                    // Successfully daemonized, continue with initialization
+                    isDaemonProcess = true ;
+                    break;
+                default:
+                    // Unexpected return value
+                    std::cerr << "Error: Unexpected return from start_daemon()" << std::endl;
+                    break;
+            }
         }
+        if( !isDaemonProcess || returnCode != 0 ){
+            // one of the otherprocess that need to terminate
+            break ;
+        }// else allow it to initialize normally
+
         returnCode = EXIT_SUCCESS;
         syslog(LOG_NOTICE, "EchoTherm Daemon Started.");
         if (!_initializeCamera(vm))
@@ -973,9 +1282,16 @@ int main(int argc, char *argv[])
             // look for new socket events
             auto const numEvents = epoll_wait(epollFileDescriptor, p_events, n_maxEpollEvents, -1);
             if (numEvents == -1)
-            {
-                syslog(LOG_ERR, "epoll_wait failed: %m");
-            }
+            {          
+                if (errno == EINTR){
+                    // This is an expected interruption, likely due to termination signal
+                   syslog(LOG_INFO, "epoll_wait interrupted, likely due to termination signal");
+                }
+                else{
+                    syslog(LOG_ERR, "epoll_wait failed: %m");
+                }
+            } 
+
             for (int eventIndex = 0; eventIndex < numEvents; ++eventIndex)
             {
                 if (p_events[eventIndex].data.fd == serverFileDescriptor)
@@ -1013,20 +1329,26 @@ int main(int argc, char *argv[])
             // TODO process other stuff in the loop here!!!
         }
     } while (false);
-    if (serverFileDescriptor != -1)
-    {
-        close(serverFileDescriptor);
+    
+    if( isDaemonProcess ){
+        //syslog(LOG_NOTICE, "Exiting daemon(%d)...\n", getpid());
+        if (serverFileDescriptor != -1)
+        {
+            close(serverFileDescriptor);
+        }
+        if (epollFileDescriptor != -1)
+        {
+            close(epollFileDescriptor);
+        }
+        if (clientFileDescriptor != -1)
+        {
+            close(clientFileDescriptor);
+        }
     }
-    if (epollFileDescriptor != -1)
-    {
-        close(epollFileDescriptor);
-    }
-    if (clientFileDescriptor != -1)
-    {
-        close(clientFileDescriptor);
-    }
-    // remove(np_lockFile);
-    // closelog();
-    // n_running = false;
+    sync();
+    //remove(np_lockFile);
+    //closelog();
+    //n_running = false;
+    syslog(LOG_NOTICE, "Exit(%d)...\n", getpid());
     return returnCode;
 }

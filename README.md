@@ -53,9 +53,17 @@ v4l2-ctl --list-devices
 ```
 > [!NOTE]  
 > Take note of the device endpoint (e.g. `/dev/video0`) and use it in the next step as {Device id}. Depending on your machine setup, the device may be called >`Dummy video device` or `EchoTherm Loopback device`  
+
+example response:
+Dummy video device (0x0000) (platform:v4l2loopback-000):
+	/dev/video0
+
 6. View the video on your desktop:
 ```
 gst-launch-1.0 v4l2src device={Device id} ! videoconvert ! autovideosink
+
+example with device specfied
+gst-launch-1.0 v4l2src device=/dev/video0 ! videoconvert ! autovideosink
 ```
 7. In another terminal window, use the `echotherm` app to change camera settings, e.g. to change the color palette:
 ```
@@ -90,6 +98,11 @@ echothermd --kill
 > [!NOTE]  
 > The daemon uses a lock file placed in `/tmp/echothermd.lock` to keep track of the daemon running or not. Typically this file is managed automatically by `echothermd`
   
+although echothermd --kill is the perferred manner to stop the daemon, it closes and terminates nice and not an abrupt kill
+you can use a command line 
+pkill -9 echothermd
+Note: stopping the daemon in this manner may require you to wait for the system to terminate connections before you can restart the daemon again.
+
 > [!TIP]
 > In some applications, the user may wish to run `echothermd` as part of a system service which starts automatically upon boot. Instructions below provide guidance for how to implement `echothermd` as a service.
 
@@ -126,14 +139,11 @@ The full list of available startup options:
                             negative = manual
                             zero     = auto
                             positive = number of seconds between shutter events
-  --frameFormat arg         Choose the initial frame format
+  --frameFormat arg         Choose the initial frame format - 
+                            (this option currently not supported from the daemon interface, use echotherm)
                             FRAME_FORMAT_CORRECTED               = 0x04  (not 
                             yet implemented)
                             FRAME_FORMAT_PRE_AGC                 = 0x08  (not 
-                            yet implemented)
-                            FRAME_FORMAT_THERMOGRAPHY_FLOAT      = 0x10  (not 
-                            yet implemented)
-                            FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6 = 0x20  (not 
                             yet implemented)
                             FRAME_FORMAT_GRAYSCALE               = 0x40
                             FRAME_FORMAT_COLOR_ARGB8888          = 0x80  
@@ -144,7 +154,10 @@ The full list of available startup options:
                             yet implemented)
                             FRAME_FORMAT_COLOR_YUY2              = 0x400 (not 
                             yet implemented)
-                            
+  --thermometicFormat       Sets the initial thermometic format
+                            (this option currently not supported from daemon interface, use echotherm)
+                            FRAME_FORMAT_THERMOGRAPHY_FLOAT      = 0x10  
+                            FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6 = 0x20 (default)                                                        
   --pipelineMode arg        Choose the initial pipeline mode
                             PIPELINE_LITE       = 0
                             PIPELINE_LEGACY     = 1
@@ -181,6 +194,9 @@ echotherm --colorPalette 1 --shutterMode 0
   --startRecording arg      Begin recording to a specified file (currently only .mp4)
   --stopRecording           Stop recording to a file
   --takeScreenshot arg      Save a screenshot of the current frame to a file
+  --takeRadiometricScreenshot arg Saves the next frame radiometric data as a file
+                            arg (optional) = path/filename
+                            if not given will create as /Home/RadiometricData_[UTC].csv
   --zoomRate arg            Choose the zoom rate (a floating point number)
                             negative = zooming out
                             zero     = not changing zoom
@@ -230,6 +246,10 @@ To identify the EchoTherm V4L Loopback device:
 ```
 v4l2-ctl --list-devices  #find the device named EchoTherm: Video Loopback
 ```
+example response:
+Dummy video device (0x0000) (platform:v4l2loopback-000):
+	/dev/video0
+
 ## Gstreamer Examples
 
 ### Example 1
@@ -237,6 +257,8 @@ The example below ingests the V4L source and displays it in a desktop window
 ```
 gst-launch-1.0 v4l2src device={Device id} ! videoconvert ! autovideosink
 ```
+example with device specfied
+gst-launch-1.0 v4l2src device=/dev/video0 ! videoconvert ! autovideosink
 
 ### Example 2
 The example below ingests the V4L source into a gstreamer pipeline and streams it to an IP address (RTP UDP) using the x264enc encoder element. This encoding is compatible with common UAV Ground Control Software packages. The pipeline below was tested on a Raspberry Pi 4 for stability. Other devices may have hardware-optimized encoders, or other software encoders which will also work. The fields `{Device id}`, `{IP Address}`, `{Port}` and `{Bitrate}' should be changed for your use case. Typical bitrates are 500-1500 kbps, and can also be changed for your use case. Generally, you can use a low bitrate (500-1000 Kbps) with excellent results because of the small 320x256 frame size.
@@ -294,6 +316,45 @@ sudo systemctl start echothermd
 sudo systemctl status echothermd
 ```
 
+# Radiometric output:
+    
+Option to save Radiometric temperture data to a file
+(available once echothermd has started)
+
+This command is treated as a snapshot function, once triggered it captures one frame of data and then reset.
+Output available in 2 formats
+    FRAME_FORMAT_THERMOGRAPHY_FLOAT
+      This generates row and column data this is in at .1f floating format ( 1 decimal place)
+      It represents each pixel as degree C.
+    FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6 - (default)
+      This generates row and column data that is in the at 10.6f format ( 6 decimal places)
+      It represents each pixel as degree C = value / 64 - 40 
+Thermometic data pipeline runs in parallel with frame data pipeline.
+Data will be saved in a comma delimited file (csv) and can be parsed with standard programs
+Usage: 
+echotherm -takeRadiometricScreenshot [arg]
+  arg is an optional path/file to save file to 
+  if arg given as path/file a file is created with that path, filename only it will be created in the HOME directory.
+     calls with same filename will overwrite existing file
+  if arg not given, it will automatically create an unique file in the current user's HOME/ directory
+  The default filename is Radiometric_[UTC].csv .. where UTC is data_time stamp that prevents files from overwritting themselves
+  *Warning: repeated use of this function will create multiple files, it is up to the user to clean them up!
+
+Data format:
+    data in file is comma delimited text 
+    presented in 3 sections:
+  File Info:
+    filename
+    frame number
+    timestamp
+  Header Infomation
+    technical information about frame and sensor
+  Data
+    Rows - horizontal data
+    Cols - vertical data 
+    Data representing the temperature of each pixel in deg C
+    Given row by row of columns
+
 ## TO DO
-- [ ] Support thermography snapshots
+
 

@@ -51,7 +51,7 @@ public:
     // COLOR_PALETTE_USER_2    = 11
     // COLOR_PALETTE_USER_3    = 12
     // COLOR_PALETTE_USER_4    = 13
-    void setThermometricFrameFormat(int thermometricFrameFormat);
+    void setRadiometricFrameFormat(int radiometricFrameFormat);
     // SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT      = 16 = 0x10
 	// SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6 = 32 = 0x20
     void setColorPalette(int colorPalette);
@@ -106,16 +106,17 @@ public:
     //stop recording
     //return a string indicating success or failure
     std::string stopRecording();
-    //take a radiometic data screenshot of the current frame to the file path
+    //take a thermometic data screenshot of the current frame to the file path
     //return a string indicating success or failure
-    std::string takeThermometricScreenshot(std::filesystem::path const& filePath);
+    std::string takeRadiometricScreenshot(std::filesystem::path const& filePath);
 
-
+    void _closeSession();
+    
 private:
     void _updateFilterHelper(int filterType, int filterState);
     void _connect(void *p_camera);
     void _handleReadyToPair(void *p_camera);
-    void _closeSession();
+    //void _closeSession();
     void _openSession(bool reconnect);
     void _openDevice(int width, int height);
     void _startShutterClickThread();
@@ -127,6 +128,7 @@ private:
     void _pushFrame(int cvFrameType, void* p_frameData);
     std::string m_loopbackDeviceName;
     std::string m_chipId;
+    int m_activeFrameFormat;
     int m_frameFormat;
     int m_colorPalette;
     int m_shutterMode;
@@ -152,7 +154,7 @@ private:
     std::condition_variable_any m_shutterClickCondition;
     std::atomic_bool m_shutterClickThreadRunning;
     std::filesystem::path m_screenshotFilePath;
-    std::filesystem::path m_thermometricSreenshotFilePath;
+    std::filesystem::path m_radiometricSreenshotFilePath;
     std::filesystem::path m_videoFilePath;
     std::string m_screenshotStatus;
     mutable std::mutex m_screenshotStatusReadyMut;
@@ -168,10 +170,9 @@ private:
     std::unique_ptr<cv::VideoWriter> mp_videoWriter;
 
     int m_frameNum;
-    int m_thermometricFrameFormat;
-    int m_thermometricFrameCapture;  
-    int m_thermometricFrameCaptureBusy;
-    std::filesystem::path m_thermometricScreenshotFilePath;
-    std::filesystem::path m_thermometricScreenshotStatus;
-    int thermometricWrite(seekframe_t* frame);
+    int m_radiometricFrameFormat;
+    int m_radiometricFrameCapture;  
+    int m_radiometricFrameCaptureBusy;
+    std::filesystem::path m_radiometricScreenshotFilePath;
+    int radiometricWrite(seekframe_t* frame);
 };
