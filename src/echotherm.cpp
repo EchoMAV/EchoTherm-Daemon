@@ -159,6 +159,33 @@ namespace
         return statusStr;
     }
 
+    std::string _takeRadiometricScreenshot(int const socketFileDescriptor, std::string const &filePath)
+    {
+        std::string statusStr;
+        std::string santizedFilePath = _sanitizeString(filePath);
+
+        std::string const commandStr = "TAKERADIOMETRICSCREENSHOT " + santizedFilePath + '|';
+        auto const numSent = write(socketFileDescriptor, commandStr.c_str(), commandStr.length());
+        if (numSent < 0)
+        {
+            statusStr = "Error sending status request";
+        }
+        else
+        {
+            char p_buffer[256] = {0};
+            auto const numRead = read(socketFileDescriptor, p_buffer, 255);
+            if (numRead < 0)
+            {
+                statusStr = "Error receiving status response";
+            }
+            else
+            {
+                statusStr = std::string(p_buffer);
+            }
+        }
+        return statusStr;
+    }
+
     bool _openSocket(int *p_socketFileDescriptor)
     {
         bool returnVal = true;
@@ -314,10 +341,30 @@ namespace
             std::string const parameterStr = vm["startRecording"].as<std::string>();
             std::cout << "Sent command to start recording to " << parameterStr << " : " << _startRecording(socketFileDescriptor, parameterStr) << std::endl;
         }
+
         if (vm.count("takeScreenshot"))
         {
             std::string const parameterStr = vm["takeScreenshot"].as<std::string>();
-            std::cout << "Sent command to take screenshot to " << parameterStr << " : " << _takeScreenshot(socketFileDescriptor, parameterStr) << std::endl;
+            if( parameterStr.empty()){
+                std::cout << "Sent command to take screenshot to " << parameterStr << " : " << _takeScreenshot(socketFileDescriptor, parameterStr) << std::endl;
+            }
+            else{
+                std::cout << "Sent command to take screenshot to " << "(auto default)" << " : " << _takeScreenshot(socketFileDescriptor, parameterStr) << std::endl;
+            }
+        }
+        
+        if (vm.count("takeRadiometricScreenshot"))
+        {
+            std::string const parameterStr = vm["takeRadiometricScreenshot"].as<std::string>();
+            std::cout << "Sent command to capture radiometric data to file: " << parameterStr << std::endl << _takeRadiometricScreenshot(socketFileDescriptor, parameterStr) << std::endl;
+        }
+
+        if (vm.count("setRadiometricFrameFormat"))
+        {
+            std::string const parameterStr = vm["setRadiometricFrameFormat"].as<std::string>();
+            std::string const commandStr = "SETRADIOMETRICFRAMEFORMAT " + parameterStr + "|";
+            send(socketFileDescriptor, commandStr.c_str(), commandStr.length(), 0);    
+            std::cout << "Sent command to change set radiometric format " << parameterStr << std::endl;
         }
     }
 }
@@ -332,11 +379,21 @@ int main(int argc, char *argv[])
         desc.add_options()("help", "Produce this message");
         desc.add_options()("shutter", "Trigger the shutter");
         desc.add_options()("status", "Get the status of the camera");
-        desc.add_options()("startRecording", boost::program_options::value<std::string>(),
+        desc.add_options()("startRecording", 
+                            boost::program_options::value<std::string>()->implicit_value(""),
                            "Begin recording to a specified file (currently only .mp4)");
         desc.add_options()("stopRecording", "Stop recording to a file");
-        desc.add_options()("takeScreenshot", boost::program_options::value<std::string>(),
+        desc.add_options()("takeScreenshot", 
+                            boost::program_options::value<std::string>()->implicit_value(""),
                            "Save a screenshot of the current frame to a file");
+        desc.add_options()("takeRadiometricScreenshot",
+                            boost::program_options::value<std::string>()->implicit_value(""),
+                            "Save radiometric data to a file (name optional) else defaults to Radiometric_[UTC].csv)");
+        desc.add_options()("setRadiometricFrameFormat",
+                            boost::program_options::value<std::string>(),
+                            "Set radiometric data format\n"
+                            "THERMOGRAPHY_FIXED_10_6 = 32 (default)\n"
+                            "THERMOGRAPHY_FLOAT = 16");
         desc.add_options()("zoomRate", boost::program_options::value<std::string>(),
                            "Choose the zoom rate (a floating point number)\n"
                            "negative = zooming out\n"

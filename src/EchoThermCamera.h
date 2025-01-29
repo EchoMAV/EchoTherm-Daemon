@@ -14,14 +14,19 @@ namespace cv
     class VideoWriter;
 }
 
+// forward reference
+struct seekframe_t; 
+
 class EchoThermCamera
 {
 public:
     EchoThermCamera();
     ~EchoThermCamera();
+    
     // change the loopback device name (will cause camera session to restart)
     // example: /dev/video0
     void setLoopbackDeviceName(std::string loopbackDeviceName);
+    
     // change the frame format (will cause camera session to restart)
     // FRAME_FORMAT_CORRECTED               = 0x04
     // FRAME_FORMAT_PRE_AGC                 = 0x08
@@ -33,6 +38,11 @@ public:
     // FRAME_FORMAT_COLOR_AYUV              = 0x200
     // FRAME_FORMAT_COLOR_YUY2              = 0x400
     void setFrameFormat(int frameFormat);
+    
+    // SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT      = 16 = 0x10
+	// SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6 = 32 = 0x20
+    void setRadiometricFrameFormat(int radiometricFrameFormat);
+
     // change the color palette
     // COLOR_PALETTE_WHITE_HOT =  0
     // COLOR_PALETTE_BLACK_HOT =  1
@@ -49,23 +59,28 @@ public:
     // COLOR_PALETTE_USER_3    = 12
     // COLOR_PALETTE_USER_4    = 13
     void setColorPalette(int colorPalette);
+    
     // change the shutter mode
     // negative = manual
     // zero     = auto
     // positive = number of seconds between shutter events
     void setShutterMode(int shutterMode);
+    
     // set the sharpen filter
     // zero     = disabled
     // non-zero = enabled
     void setSharpenFilter(int sharpenFilterMode);
+    
     // set the flat scene filter
     // zero     = disabled
     // non-zero = enabled
     void setFlatSceneFilter(int flatSceneFilterMode);
+    
     // set the gradient filter
     // zero     = disabled
     // non-zero = enabled
     void setGradientFilter(int gradientFilterMode);
+   
     // set the pipeline mode
     // PIPELINE_LITE       = 0,
     // PIPELINE_LEGACY     = 1,
@@ -100,13 +115,17 @@ public:
     //stop recording
     //return a string indicating success or failure
     std::string stopRecording();
+    //take a thermometic data screenshot of the current frame to the file path
+    //return a string indicating success or failure
+    std::string takeRadiometricScreenshot(std::filesystem::path const& filePath);
 
-
+    void _closeSession();
+    
 private:
     void _updateFilterHelper(int filterType, int filterState);
     void _connect(void *p_camera);
     void _handleReadyToPair(void *p_camera);
-    void _closeSession();
+    //void _closeSession();
     void _openSession(bool reconnect);
     void _openDevice(int width, int height);
     void _startShutterClickThread();
@@ -116,10 +135,9 @@ private:
     ssize_t _writeBytes(void* p_frameData, size_t frameDataSize);
     void _doContinuousZoom();
     void _pushFrame(int cvFrameType, void* p_frameData);
-
-
     std::string m_loopbackDeviceName;
     std::string m_chipId;
+    int m_activeFrameFormat;
     int m_frameFormat;
     int m_colorPalette;
     int m_shutterMode;
@@ -145,6 +163,7 @@ private:
     std::condition_variable_any m_shutterClickCondition;
     std::atomic_bool m_shutterClickThreadRunning;
     std::filesystem::path m_screenshotFilePath;
+    std::filesystem::path m_radiometricSreenshotFilePath;
     std::filesystem::path m_videoFilePath;
     std::string m_screenshotStatus;
     mutable std::mutex m_screenshotStatusReadyMut;
@@ -159,4 +178,10 @@ private:
     std::atomic_bool m_recordingThreadRunning;
     std::unique_ptr<cv::VideoWriter> mp_videoWriter;
 
+    int m_frameNum;
+    int m_radiometricFrameFormat;
+    int m_radiometricFrameCapture;  
+    int m_radiometricFrameCaptureBusy;
+    std::filesystem::path m_radiometricScreenshotFilePath;
+    int radiometricWrite(seekframe_t* frame);
 };
