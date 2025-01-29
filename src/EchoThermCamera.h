@@ -22,9 +22,11 @@ class EchoThermCamera
 public:
     EchoThermCamera();
     ~EchoThermCamera();
+    
     // change the loopback device name (will cause camera session to restart)
     // example: /dev/video0
     void setLoopbackDeviceName(std::string loopbackDeviceName);
+    
     // change the frame format (will cause camera session to restart)
     // FRAME_FORMAT_CORRECTED               = 0x04
     // FRAME_FORMAT_PRE_AGC                 = 0x08
@@ -36,6 +38,11 @@ public:
     // FRAME_FORMAT_COLOR_AYUV              = 0x200
     // FRAME_FORMAT_COLOR_YUY2              = 0x400
     void setFrameFormat(int frameFormat);
+    
+    // SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT      = 16 = 0x10
+	// SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6 = 32 = 0x20
+    void setRadiometricFrameFormat(int radiometricFrameFormat);
+
     // change the color palette
     // COLOR_PALETTE_WHITE_HOT =  0
     // COLOR_PALETTE_BLACK_HOT =  1
@@ -51,27 +58,29 @@ public:
     // COLOR_PALETTE_USER_2    = 11
     // COLOR_PALETTE_USER_3    = 12
     // COLOR_PALETTE_USER_4    = 13
-    void setRadiometricFrameFormat(int radiometricFrameFormat);
-    // SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FLOAT      = 16 = 0x10
-	// SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6 = 32 = 0x20
     void setColorPalette(int colorPalette);
+    
     // change the shutter mode
     // negative = manual
     // zero     = auto
     // positive = number of seconds between shutter events
     void setShutterMode(int shutterMode);
+    
     // set the sharpen filter
     // zero     = disabled
     // non-zero = enabled
     void setSharpenFilter(int sharpenFilterMode);
+    
     // set the flat scene filter
     // zero     = disabled
     // non-zero = enabled
     void setFlatSceneFilter(int flatSceneFilterMode);
+    
     // set the gradient filter
     // zero     = disabled
     // non-zero = enabled
     void setGradientFilter(int gradientFilterMode);
+   
     // set the pipeline mode
     // PIPELINE_LITE       = 0,
     // PIPELINE_LEGACY     = 1,

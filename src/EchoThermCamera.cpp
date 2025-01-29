@@ -9,6 +9,8 @@
 #include <cstring>
 #include <sstream>
 #include <iostream>
+#include <fstream> // Required for std::ofstream
+
 #include <opencv2/imgproc.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/videoio.hpp>
@@ -21,6 +23,54 @@ namespace
     constexpr static inline auto const n_minZoom = 1.0;
     constexpr static inline auto const n_defaultMaxZoom = 16.0;
     constexpr static inline auto const n_frameRate = 27.0;
+}
+
+std::string getHomePath()
+{
+    return std::filesystem::path(std::getenv(
+#ifdef _WIN32
+                                     "USERPROFILE"
+#else
+                                     "HOME"
+#endif
+                                     ))
+        .string();
+}
+
+bool has_rw_access(const std::filesystem::path& path) {
+    std::filesystem::path parent_path = path.parent_path();
+    
+    // Check if parent directory exists and is accessible
+    if (!std::filesystem::exists(parent_path)) {
+        return false;
+    }
+
+    // Check parent directory permissions
+    auto parent_perms = std::filesystem::status(parent_path).permissions();
+    if ((parent_perms & std::filesystem::perms::owner_write) == std::filesystem::perms::none) {
+        return false;
+    }
+
+    // If file exists, check its permissions
+    if (std::filesystem::exists(path)) {
+        auto perms = std::filesystem::status(path).permissions();
+        return ((perms & std::filesystem::perms::owner_read) != std::filesystem::perms::none) &&
+               ((perms & std::filesystem::perms::owner_write) != std::filesystem::perms::none);
+    }
+
+    // If file doesn't exist, try to create and remove it
+    try {
+        std::ofstream test_file(path);
+        if (test_file.is_open()) {
+            test_file.close();
+            std::filesystem::remove(path);
+            return true;
+        }
+    } catch (...) {
+        // Any exception means we don't have proper access
+    }
+
+    return false;
 }
 
 EchoThermCamera::EchoThermCamera()
@@ -710,6 +760,13 @@ std::string EchoThermCamera::startRecording(std::filesystem::path const &filePat
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::startRecording(%s)", filePath.string().c_str());
 #endif
     std::string status;
+
+    if( !has_rw_access( filePath )){
+        status = "Unable to startRecorder: " + filePath.string() + " RW access not allowed, verify path";
+        syslog(LOG_ERR, "%s" , status.c_str() );
+        return status ;
+    }
+   
     if (mp_videoWriter && mp_videoWriter->isOpened())
     {
         status = "Already recording to video file " + m_videoFilePath.string();
@@ -730,29 +787,33 @@ std::string EchoThermCamera::startRecording(std::filesystem::path const &filePat
             m_recordingFrameQueue.clear();
             m_videoFilePath = filePath;
             auto const fourcc = cv::VideoWriter::fourcc('m', 'p', '4', 'v');
+
             double fps = n_frameRate; // 27 fps assumed
             try
             {
                 mp_videoWriter = std::make_unique<cv::VideoWriter>(m_videoFilePath.string(), fourcc, fps, cv::Size(m_width, m_height), m_frameFormat != SEEKCAMERA_FRAME_FORMAT_GRAYSCALE);
-                if (mp_videoWriter->isOpened())
+                if ( mp_videoWriter->isOpened())
                 {
                     status += "Video file " + m_videoFilePath.string() + " opened for writing";
                 }
                 else
                 {
-                    status += "Failed to open file " + m_videoFilePath.string() + " opened for writing";
+                    status += "Failed to open video file " + m_videoFilePath.string() + " for writing";
+                    syslog( LOG_INFO, "%s" ,status.c_str() );
+                    syslog( LOG_INFO, "File: %s" ,std::filesystem::absolute(m_videoFilePath).c_str() );
+                    syslog( LOG_INFO, "OpenCV version: %s" , CV_VERSION);
                 }
             }
             catch (cv::Exception const &e)
             {
-                status += "Failed to open file " + m_videoFilePath.string() + " opened for writing : " + e.msg;
+                status += "Failed to open file " + m_videoFilePath.string() + " opened for writing : " + e.msg + "\n" + e.what();
             }
             recordingLock.unlock();
             m_recordingFramesReadyCondition.notify_one();
         }
         else
         {
-            status += "Extension must be '.mp4'";
+            status += "Video file extension must be '.mp4'";
         }
     }
 #ifdef DEBUG
@@ -767,8 +828,14 @@ std::string EchoThermCamera::takeScreenshot(std::filesystem::path const &filePat
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::takeScreenshot(%s)", filePath.string().c_str());
 #endif
     std::string status;
+    if( !has_rw_access( filePath )){
+        status = "Unable to take screenshot to: " + filePath.string() + " RW access not allowed! verify path";
+        syslog(LOG_ERR, "%s" , status.c_str() );
+        return status ;
+    }
     // set the path so that the next frame will see the path and write it
     // then wait for the status to update
+    // when screenshot gets set to a path it will automatically capture and clear path
     m_screenshotFilePath = filePath;
     std::unique_lock<std::mutex> screenshotStatusLock(m_screenshotStatusReadyMut);
     m_screenshotStatusReadyCondition.wait(screenshotStatusLock, [this]()
@@ -798,7 +865,7 @@ std::string EchoThermCamera::takeRadiometricScreenshot(std::filesystem::path con
     std::string status;
     if (filePath.empty())
     {
-        syslog(LOG_WARNING, "Radiometric using default filename: /Home/Radiometric_UTC.csv");
+        syslog(LOG_WARNING, "Radiometric using default filename: /[Home]/Radiometric_[UTC].csv");
         m_radiometricScreenshotFilePath.clear();
     }
     else
@@ -812,7 +879,7 @@ std::string EchoThermCamera::takeRadiometricScreenshot(std::filesystem::path con
         break;
     default:
         m_radiometricFrameFormat = SEEKCAMERA_FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6;
-        syslog(LOG_WARNING, "The radiometric format was invalid, defaulting to format %d.", m_radiometricFrameFormat);
+        syslog(LOG_INFO, "The radiometric format was invalid, defaulting to format %d.", m_radiometricFrameFormat);
         break;
     }
 
@@ -1013,7 +1080,7 @@ void EchoThermCamera::_openSession(bool reconnect)
                                                                   seekframe_t *p_frame = nullptr;
 
             // TODO: support the ability to capture multiple formats
-            // For example, you can pull YUY2 data AND thermography data, themograph data handled
+            // For example, you can pull YUY2 data AND thermography data, themograph data is now handled
             // You'd write the YUY2 data to the frame and you'd write the thermography data to a CSV
                                                                   auto const status = seekcamera_frame_get_frame_by_format(p_cameraFrame, (seekcamera_frame_format_t)p_this->m_frameFormat, &p_frame);
                                                                   if (status == SEEKCAMERA_SUCCESS)
@@ -1043,9 +1110,9 @@ void EchoThermCamera::_openSession(bool reconnect)
                                                                   //-------------------------------------------------------------------------------------
                                                                   // Capture one frame of radiometric data
                                                                   // capture flag is set to true, will be cleared when complete
-                                                                  //        prevents subsequent calls while processing
+                                                                  //        busy prevents subsequent calls while processing
                                                                   // note: the running mode must be set to include one of the 2 thermography modes
-                                                                  //       this was verified when FrameCapture set
+                                                                  //       this was verified when RadiometricFrameCapture set
                                                                   if (p_this->m_radiometricFrameCapture == 1 &&
                                                                       p_this->m_radiometricFrameCaptureBusy == 0)
                                                                   {
@@ -1305,7 +1372,7 @@ void EchoThermCamera::_startRecordingThread()
             if(!m_screenshotFilePath.empty())
             {
                 try
-                {
+                {                   
                     if(cv::imwrite(m_screenshotFilePath.string(),queueFrame))
                     {
                         m_screenshotStatus = "Wrote screenshot to "+m_screenshotFilePath.string();
@@ -1537,18 +1604,6 @@ ssize_t EchoThermCamera::_writeBytes(void *p_frameData, size_t frameDataSize)
     return bytesWritten;
 }
 
-std::string getHomePath()
-{
-    return std::filesystem::path(std::getenv(
-#ifdef _WIN32
-                                     "USERPROFILE"
-#else
-                                     "HOME"
-#endif
-                                     ))
-        .string();
-}
-
 int EchoThermCamera::radiometricWrite(seekframe_t *frame)
 {
     // Log each header value to the CSV file, see the documentation for a description of the header.
@@ -1557,6 +1612,7 @@ int EchoThermCamera::radiometricWrite(seekframe_t *frame)
     {
         return EXIT_FAILURE;
     }
+    // Uses the UTC time from the frame, time stamp in hundreths
     time_t timestamp_sec = (time_t)(header->timestamp_utc_ns / 1e9);
     int hundredths = (header->timestamp_utc_ns % 1000000000) / 10000000; // Hundredths
     // Create a timestamp string in the format YYYY_MM_DD_HH_MM_SS
@@ -1598,7 +1654,7 @@ int EchoThermCamera::radiometricWrite(seekframe_t *frame)
         std::filesystem::path providedPath(filePath);
         fileName = providedPath.filename().string(); // Extract the file name to put in file
 
-        // if no path provided, use the home path so it knows where to put it
+        // if no path provided, then use the home path so it knows where to put it
         if (!providedPath.has_parent_path())
         {
             // HOME directory
@@ -1611,6 +1667,13 @@ int EchoThermCamera::radiometricWrite(seekframe_t *frame)
             std::filesystem::path homePath(home);
             filePath = (homePath / fileName).string();
         }
+    }
+
+    // before trying to save, can we test this location to see if it is valid
+    if( !has_rw_access( filePath )){
+        std::string status = "Unable to take radiometric screenshot to: " + filePath + " RW access not allowed!, verify path";
+        syslog(LOG_ERR, "%s" , status.c_str() );
+        return EXIT_FAILURE;
     }
 
     // Open the file and save data

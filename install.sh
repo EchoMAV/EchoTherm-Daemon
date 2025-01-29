@@ -16,6 +16,7 @@ else
     exit 1
 fi
 # install all the stuff you'll need (dkms, cmake, boost, gstreamer)
+echo "Installing support files, please verify complete installation and no errors"
 apt update
 apt install -y v4l-utils
 apt install -y curl 
@@ -39,6 +40,7 @@ apt install -y gstreamer1.0-qt5
 apt install -y gstreamer1.0-pulseaudio 
 apt install -y libopencv 
 apt install -y libopencv-dev
+echo "Review logs to verify complete installation"
 # download the v4l2loopback stuff and place it into /usr/src
 version=0.12.5
 curl -L https://github.com/umlaeute/v4l2loopback/archive/v${version}.tar.gz | tar xvz -C /usr/src

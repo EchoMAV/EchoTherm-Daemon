@@ -345,7 +345,12 @@ namespace
         if (vm.count("takeScreenshot"))
         {
             std::string const parameterStr = vm["takeScreenshot"].as<std::string>();
-            std::cout << "Sent command to take screenshot to " << parameterStr << " : " << _takeScreenshot(socketFileDescriptor, parameterStr) << std::endl;
+            if( parameterStr.empty()){
+                std::cout << "Sent command to take screenshot to " << parameterStr << " : " << _takeScreenshot(socketFileDescriptor, parameterStr) << std::endl;
+            }
+            else{
+                std::cout << "Sent command to take screenshot to " << "(auto default)" << " : " << _takeScreenshot(socketFileDescriptor, parameterStr) << std::endl;
+            }
         }
         
         if (vm.count("takeRadiometricScreenshot"))
@@ -374,10 +379,12 @@ int main(int argc, char *argv[])
         desc.add_options()("help", "Produce this message");
         desc.add_options()("shutter", "Trigger the shutter");
         desc.add_options()("status", "Get the status of the camera");
-        desc.add_options()("startRecording", boost::program_options::value<std::string>(),
+        desc.add_options()("startRecording", 
+                            boost::program_options::value<std::string>()->implicit_value(""),
                            "Begin recording to a specified file (currently only .mp4)");
         desc.add_options()("stopRecording", "Stop recording to a file");
-        desc.add_options()("takeScreenshot", boost::program_options::value<std::string>(),
+        desc.add_options()("takeScreenshot", 
+                            boost::program_options::value<std::string>()->implicit_value(""),
                            "Save a screenshot of the current frame to a file");
         desc.add_options()("takeRadiometricScreenshot",
                             boost::program_options::value<std::string>()->implicit_value(""),

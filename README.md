@@ -64,6 +64,7 @@ gst-launch-1.0 v4l2src device={Device id} ! videoconvert ! autovideosink
 
 example with device specfied
 gst-launch-1.0 v4l2src device=/dev/video0 ! videoconvert ! autovideosink
+
 ```
 7. In another terminal window, use the `echotherm` app to change camera settings, e.g. to change the color palette:
 ```
@@ -72,6 +73,7 @@ echotherm --colorPalette 4
 Congrats! You now have a functional camera. Continue reading to learn more details about the echothermd and echotherm apps and other gstreamer implementations for headless/streaming applications.
 
 ## EchoTherm Daemon
+current version 1.1.0
 
 EchoTherm Daemon `echothermd` must be started before the EchoTherm camera can be used. This background process (daemon) runs continuously, manages camera connects and disconnects, and inteprepts and implements commands coming from the user application `echotherm`. It also sends video camera frames (YUY2 pixel format by default) to the Video4Linux loopback device so that the EchoTherm colorized video output can easily be ingested by common media frameworks such as [gstreamer](https://gstreamer.freedesktop.org/) and [ffmpeg](https://www.ffmpeg.org/).  
 
@@ -107,78 +109,88 @@ Note: stopping the daemon in this manner may require you to wait for the system 
 > In some applications, the user may wish to run `echothermd` as part of a system service which starts automatically upon boot. Instructions below provide guidance for how to implement `echothermd` as a service.
 
 #### echothermd Allowed Options
-`echothermd` may be started with the (optional) startup options.  
+`echothermd` may be started with the (optional) startup options. 
+options can be stacked when initiating the daemon to set default values 
 
 Below is an example `echothermd` command to startup the EchoTherm Daemon and set the initial Color Palette to **Hi** and the Shutter Mode to **Auto**:
 ```
 echothermd --daemon --colorPalette 7 --shutterMode 0
+
+hint: use the logging functions to monitor startup
 ```
 The full list of available startup options:
-```
-  --help                    Produce this message
-  --daemon                  Start the process as a daemon
-  --kill                    Kill the existing instance
-  --maxZoom arg             Set the maximum zoom (a floating point number)
-  --loopbackDeviceName arg  Choose the initial loopback device name
-  --colorPalette arg        Choose the initial color palette
-                            COLOR_PALETTE_WHITE_HOT =  0
-                            COLOR_PALETTE_BLACK_HOT =  1
-                            COLOR_PALETTE_SPECTRA   =  2
-                            COLOR_PALETTE_PRISM     =  3
-                            COLOR_PALETTE_TYRIAN    =  4
-                            COLOR_PALETTE_IRON      =  5
-                            COLOR_PALETTE_AMBER     =  6
-                            COLOR_PALETTE_HI        =  7
-                            COLOR_PALETTE_GREEN     =  8
-                            COLOR_PALETTE_USER_0    =  9
-                            COLOR_PALETTE_USER_1    = 10
-                            COLOR_PALETTE_USER_2    = 11
-                            COLOR_PALETTE_USER_3    = 12
-                            COLOR_PALETTE_USER_4    = 13
-  --shutterMode arg         Choose the initial shutter mode
-                            negative = manual
-                            zero     = auto
-                            positive = number of seconds between shutter events
-  --frameFormat arg         Choose the initial frame format - 
-                            (this option currently not supported from the daemon interface, use echotherm)
-                            FRAME_FORMAT_CORRECTED               = 0x04  (not 
-                            yet implemented)
-                            FRAME_FORMAT_PRE_AGC                 = 0x08  (not 
-                            yet implemented)
-                            FRAME_FORMAT_GRAYSCALE               = 0x40
-                            FRAME_FORMAT_COLOR_ARGB8888          = 0x80  
-                            (default)
-                            FRAME_FORMAT_COLOR_RGB565            = 0x100 (not 
-                            yet implemented)
-                            FRAME_FORMAT_COLOR_AYUV              = 0x200 (not 
-                            yet implemented)
-                            FRAME_FORMAT_COLOR_YUY2              = 0x400 (not 
-                            yet implemented)
-  --thermometicFormat       Sets the initial thermometic format
-                            (this option currently not supported from daemon interface, use echotherm)
-                            FRAME_FORMAT_THERMOGRAPHY_FLOAT      = 0x10  
-                            FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6 = 0x20 (default)                                                        
-  --pipelineMode arg        Choose the initial pipeline mode
-                            PIPELINE_LITE       = 0
-                            PIPELINE_LEGACY     = 1
-                            PIPELINE_PROCESSED  = 2
-                            Note that in PIPELINE_PROCESSED, sharpen, flat 
-                            scene, and gradient filters are disabled
-  --sharpenFilterMode arg   Choose the initial state of the sharpen filter
-                            zero     = disabled
-                            non-zero = enabled
-  --flatSceneFilterMode arg Choose the initial state of the flat scene filter
-                            zero     = disabled
-                            non-zero = enabled
-  --gradientFilterMode arg  Choose the initial state of the gradient filter
-                            zero     = disabled
-                            non-zero = enabled
+v1.1.0
+Allowed options:
+  --help                          Produce this message
+  --daemon                        Start the process as a daemon
+  --kill                          Kill the existing instance
+  --maxZoom arg                   Set the maximum zoom (a floating point
+                                  number)
+  --loopbackDeviceName arg        Choose the initial loopback device name
+  --colorPalette arg              Choose the initial color palette
+                                  COLOR_PALETTE_WHITE_HOT =  0
+                                  COLOR_PALETTE_BLACK_HOT =  1
+                                  COLOR_PALETTE_SPECTRA   =  2
+                                  COLOR_PALETTE_PRISM     =  3
+                                  COLOR_PALETTE_TYRIAN    =  4
+                                  COLOR_PALETTE_IRON      =  5
+                                  COLOR_PALETTE_AMBER     =  6
+                                  COLOR_PALETTE_HI        =  7
+                                  COLOR_PALETTE_GREEN     =  8
+                                  COLOR_PALETTE_USER_0    =  9
+                                  COLOR_PALETTE_USER_1    = 10
+                                  COLOR_PALETTE_USER_2    = 11
+                                  COLOR_PALETTE_USER_3    = 12
+                                  COLOR_PALETTE_USER_4    = 13
+  --shutterMode arg               Choose the initial shutter mode
+                                  negative = manual
+                                  zero     = auto
+                                  positive = number of seconds between shutter
+                                  events
+  --frameFormat arg               Choose the initial frame format
+                                  FRAME_FORMAT_CORRECTED               = 0x04
+                                  (not yet implemented)
+                                  FRAME_FORMAT_PRE_AGC                 = 0x08
+                                  (not yet implemented)
+                                  FRAME_FORMAT_GRAYSCALE               = 0x40
+                                  FRAME_FORMAT_COLOR_ARGB8888          = 0x80
+                                  (default)
+                                  FRAME_FORMAT_COLOR_RGB565            = 0x100
+                                  (not yet implemented)
+                                  FRAME_FORMAT_COLOR_AYUV              = 0x200
+                                  (not yet implemented)
+                                  FRAME_FORMAT_COLOR_YUY2              = 0x400
+                                  (not yet implemented)
+  --setRadiometricFrameFormat arg Choose the initial radiometric frame format
+                                  FRAME_FORMAT_THERMOGRAPHY_FLOAT      = 0x10
+                                  FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6 = 0x20
+                                  (default)
+  --pipelineMode arg              Choose the initial pipeline mode
+                                  PIPELINE_LITE       = 0
+                                  PIPELINE_LEGACY     = 1
+                                  PIPELINE_PROCESSED  = 2
+                                  Note that in PIPELINE_PROCESSED, sharpen,
+                                  flat scene, and gradient filters are disabled
+  --sharpenFilterMode arg         Choose the initial state of the sharpen
+                                  filter
+                                  zero     = disabled
+                                  non-zero = enabled
+  --flatSceneFilterMode arg       Choose the initial state of the flat scene
+                                  filter
+                                  zero     = disabled
+                                  non-zero = enabled
+  --gradientFilterMode arg        Choose the initial state of the gradient
+                                  filter
+                                  zero     = disabled
+                                  non-zero = enabled
 ```
 
 > [!NOTE]  
 > If you run `echothermd` without `--daemon` and terminate the program with `Ctrl+C`, then you should run `echotermd --kill` afterwards to clean up the `/tmp/echothermd.lock` file
+echothermd --kill will indicate the status of any background processes found and terminated
 
 ## EchoTherm App 
+current version 1.1.0
 
 The `echotherm` application is how the user can interact with the camera while it is running. This allows runtime changes including color palette, shutter modes and other options shown below. The `echotherm` app communicates with `echothermd` using a socket on port 9182. 
 
@@ -188,57 +200,67 @@ echotherm --colorPalette 1 --shutterMode 0
 ```
 #### echotherm Allowed Options
 ```
-  --help                    Produce this message
-  --shutter                 Trigger the shutter
-  --status                  Get the status of the camera
-  --startRecording arg      Begin recording to a specified file (currently only .mp4)
-  --stopRecording           Stop recording to a file
-  --takeScreenshot arg      Save a screenshot of the current frame to a file
-  --takeRadiometricScreenshot arg Saves the next frame radiometric data as a file
-                            arg (optional) = path/filename
-                            if not given will create as /Home/RadiometricData_[UTC].csv
-  --zoomRate arg            Choose the zoom rate (a floating point number)
-                            negative = zooming out
-                            zero     = not changing zoom
-                            positive = zooming in
-  --zoom arg                Instantly set the current zoom (a floating point 
-                            number)
-  --maxZoom arg             Set the maximum zoom (a floating point number)
-  --getZoom                 Get a string indicating current zoom parameters
-  --colorPalette arg        Choose the color palette
-                            COLOR_PALETTE_WHITE_HOT =  0
-                            COLOR_PALETTE_BLACK_HOT =  1
-                            COLOR_PALETTE_SPECTRA   =  2
-                            COLOR_PALETTE_PRISM     =  3
-                            COLOR_PALETTE_TYRIAN    =  4
-                            COLOR_PALETTE_IRON      =  5
-                            COLOR_PALETTE_AMBER     =  6
-                            COLOR_PALETTE_HI        =  7
-                            COLOR_PALETTE_GREEN     =  8
-                            COLOR_PALETTE_USER_0    =  9
-                            COLOR_PALETTE_USER_1    = 10
-                            COLOR_PALETTE_USER_2    = 11
-                            COLOR_PALETTE_USER_3    = 12
-                            COLOR_PALETTE_USER_4    = 13
-  --shutterMode arg         Choose the shutter mode
-                            negative = manual
-                            zero     = auto
-                            positive = number of seconds between shutter events
-  --pipelineMode arg        Choose the pipeline mode
-                            PIPELINE_LITE       = 0
-                            PIPELINE_LEGACY     = 1
-                            PIPELINE_PROCESSED  = 2
-                            Note that in PIPELINE_PROCESSED, sharpen, flat 
-                            scene, and gradient filters are disabled
-  --sharpenFilterMode arg   Choose the state of the sharpen filter
-                            zero     = disabled
-                            non-zero = enabled
-  --flatSceneFilterMode arg Choose the state of the flat scene filter
-                            zero     = disabled
-                            non-zero = enabled
-  --gradientFilterMode arg  Choose the state of the gradient filter
-                            zero     = disabled
-                            non-zero = enabled
+ver 1.1.0
+  --help                          Produce this message
+  --shutter                       Trigger the shutter
+  --status                        Get the status of the camera
+  --startRecording arg            Begin recording to a specified file
+                                  (currently only .mp4)
+  --stopRecording                 Stop recording to a file
+  --takeScreenshot arg            Save a screenshot of the current frame to a
+                                  file
+  --takeRadiometricScreenshot arg Save radiometric data to a file (name
+                                  optional) else defaults to
+                                  Radiometric_[UTC].csv)
+  --setRadiometricFrameFormat arg Set radiometric data format
+                                  THERMOGRAPHY_FIXED_10_6 = 32 (default)
+                                  THERMOGRAPHY_FLOAT = 16
+  --zoomRate arg                  Choose the zoom rate (a floating point
+                                  number)
+                                  negative = zooming out
+                                  zero     = not changing zoom
+                                  positive = zooming in
+  --zoom arg                      Instantly set the current zoom (a floating
+                                  point number)
+  --maxZoom arg                   Set the maximum zoom (a floating point
+                                  number)
+  --getZoom                       Get a string indicating current zoom
+                                  parameters
+  --colorPalette arg              Choose the color palette
+                                  COLOR_PALETTE_WHITE_HOT =  0
+                                  COLOR_PALETTE_BLACK_HOT =  1
+                                  COLOR_PALETTE_SPECTRA   =  2
+                                  COLOR_PALETTE_PRISM     =  3
+                                  COLOR_PALETTE_TYRIAN    =  4
+                                  COLOR_PALETTE_IRON      =  5
+                                  COLOR_PALETTE_AMBER     =  6
+                                  COLOR_PALETTE_HI        =  7
+                                  COLOR_PALETTE_GREEN     =  8
+                                  COLOR_PALETTE_USER_0    =  9
+                                  COLOR_PALETTE_USER_1    = 10
+                                  COLOR_PALETTE_USER_2    = 11
+                                  COLOR_PALETTE_USER_3    = 12
+                                  COLOR_PALETTE_USER_4    = 13
+  --shutterMode arg               Choose the shutter mode
+                                  negative = manual
+                                  zero     = auto
+                                  positive = number of seconds between shutter
+                                  events
+  --pipelineMode arg              Choose the pipeline mode
+                                  PIPELINE_LITE       = 0
+                                  PIPELINE_LEGACY     = 1
+                                  PIPELINE_PROCESSED  = 2
+                                  Note that in PIPELINE_PROCESSED, sharpen,
+                                  flat scene, and gradient filters are disabled
+  --sharpenFilterMode arg         Choose the state of the sharpen filter
+                                  zero     = disabled
+                                  non-zero = enabled
+  --flatSceneFilterMode arg       Choose the state of the flat scene filter
+                                  zero     = disabled
+                                  non-zero = enabled
+  --gradientFilterMode arg        Choose the state of the gradient filter
+                                  zero     = disabled
+                                  non-zero = enabled
 ```
 
 ## Video For Linux LoopBack
@@ -316,8 +338,41 @@ sudo systemctl start echothermd
 sudo systemctl status echothermd
 ```
 
+# Video output:
+```
+v1.1.0 
+The echotherm interface can be used to start and stop video recording
+echotherm --startRecording [arg]
+
+the argument is the filepath you wish to save the video file as (optional)
+note: currently only mp4 encoding is supported so this file must have the extension of .mp4
+
+if no file name is given, the system will automatically create a Video_UTC.mp4 is the current HOME directory
+
+to stop the video recording you have to issue the command
+echotherm --stopRecording
+or
+echothermd --kill
+
+ *Warning: repeated use of this function will create multiple files, it is up to the user to clean them up!
+
+# Screenshot:
+```
+v1.1.0 
+The echotherm interface can be used to capture a frame of the stream to a file
+echotherm --takeScreenSnapshot [arg]
+
+the argument is the filepath you wish to save the image file as (optional)
+note: jpeg is the default but other formats should be supported
+
+if no file name is given, the system will automatically create a Frame_UTC.jpeg is the current HOME directory
+
+ *Warning: repeated use of this function will create multiple files, it is up to the user to clean them up!
+
+
 # Radiometric output:
-    
+```
+v1.1.0    
 Option to save Radiometric temperture data to a file
 (available once echothermd has started)
 
