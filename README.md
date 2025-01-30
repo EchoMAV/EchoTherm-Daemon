@@ -72,6 +72,7 @@ echotherm --colorPalette 4
 ```
 Congrats! You now have a functional camera. Continue reading to learn more details about the echothermd and echotherm apps and other gstreamer implementations for headless/streaming applications.
 
+
 ## EchoTherm Daemon
 current version 1.1.0
 
@@ -100,27 +101,31 @@ echothermd --kill
 > [!NOTE]  
 > The daemon uses a lock file placed in `/tmp/echothermd.lock` to keep track of the daemon running or not. Typically this file is managed automatically by `echothermd`
   
-although echothermd --kill is the perferred manner to stop the daemon, it closes and terminates nice and not an abrupt kill
-you can use a command line 
+although "echothermd --kill" is the perferred manner to stop the daemon, as it closes and terminates the process by closing the camera connection first and does not just terminate the process, which may leave resources allocated.
+You can use a command line 
+```
 pkill -9 echothermd
-Note: stopping the daemon in this manner may require you to wait for the system to terminate connections before you can restart the daemon again.
+```
+Note: stopping the daemon in this manner may require you to wait for the system to terminate connections before you can restart the daemon again or to run this command more than once to fully close any orphaned processes still running. If the camera fails to connect again on startup this may because of improperly closing. When using the "kill" option the system will indicate the status to the terminal as to the exit process and success. 
 
 > [!TIP]
 > In some applications, the user may wish to run `echothermd` as part of a system service which starts automatically upon boot. Instructions below provide guidance for how to implement `echothermd` as a service.
 
-#### echothermd Allowed Options
-`echothermd` may be started with the (optional) startup options. 
-options can be stacked when initiating the daemon to set default values 
+### echothermd allowed options
+`echothermd` may be started with additional (optional) startup options when along with the --daemon command. 
+These other options can be stacked when initiating the daemon to set default values 
+Note: "kill" and "help" are stand alone commands.
 
 Below is an example `echothermd` command to startup the EchoTherm Daemon and set the initial Color Palette to **Hi** and the Shutter Mode to **Auto**:
 ```
 echothermd --daemon --colorPalette 7 --shutterMode 0
 
-hint: use the logging functions to monitor startup
+option parameters may be passed with either [space] or =  i.e.("--colorPalette=7" or "--colorPalette 7")
 ```
-The full list of available startup options:
-v1.1.0
-Allowed options:
+> [!TIP] use the logging functions to monitor startup to very option recognized
+
+The full list of available startup options: (v1.1.0)
+```
   --help                          Produce this message
   --daemon                        Start the process as a daemon
   --kill                          Kill the existing instance
@@ -186,8 +191,9 @@ Allowed options:
 ```
 
 > [!NOTE]  
-> If you run `echothermd` without `--daemon` and terminate the program with `Ctrl+C`, then you should run `echotermd --kill` afterwards to clean up the `/tmp/echothermd.lock` file
-echothermd --kill will indicate the status of any background processes found and terminated
+> If you run `echothermd` without `--daemon` and terminate the program with `Ctrl+C`, then you should run `echotermd --kill` afterwards to clean up the `/tmp/echothermd.lock` file. 
+Using echothermd --kill will indicate the status of any background processes found and termination status.
+The kill option will wait upto 15 seconds (typically < 2) for the connection to close before terminating process by brut force.
 
 ## EchoTherm App 
 current version 1.1.0
@@ -197,10 +203,11 @@ The `echotherm` application is how the user can interact with the camera while i
 Below is an example `echotherm` command to set the Color Palette to **Black Hot** and the Shutter Mode to **Auto**:
 ```
 echotherm --colorPalette 1 --shutterMode 0
+
+again option parameters may be passed with either [space] or =
 ```
-#### echotherm Allowed Options
+### echotherm allowed options (ver 1.1.0)
 ```
-ver 1.1.0
   --help                          Produce this message
   --shutter                       Trigger the shutter
   --status                        Get the status of the camera
@@ -211,7 +218,7 @@ ver 1.1.0
                                   file
   --takeRadiometricScreenshot arg Save radiometric data to a file (name
                                   optional) else defaults to
-                                  Radiometric_[UTC].csv)
+                                  Radiometric_[UTC].csv
   --setRadiometricFrameFormat arg Set radiometric data format
                                   THERMOGRAPHY_FIXED_10_6 = 32 (default)
                                   THERMOGRAPHY_FLOAT = 16
@@ -269,9 +276,10 @@ To identify the EchoTherm V4L Loopback device:
 v4l2-ctl --list-devices  #find the device named EchoTherm: Video Loopback
 ```
 example response:
+```
 Dummy video device (0x0000) (platform:v4l2loopback-000):
 	/dev/video0
-
+```
 ## Gstreamer Examples
 
 ### Example 1
@@ -279,8 +287,10 @@ The example below ingests the V4L source and displays it in a desktop window
 ```
 gst-launch-1.0 v4l2src device={Device id} ! videoconvert ! autovideosink
 ```
-example with device specfied
+example with device specfied:
+```
 gst-launch-1.0 v4l2src device=/dev/video0 ! videoconvert ! autovideosink
+```
 
 ### Example 2
 The example below ingests the V4L source into a gstreamer pipeline and streams it to an IP address (RTP UDP) using the x264enc encoder element. This encoding is compatible with common UAV Ground Control Software packages. The pipeline below was tested on a Raspberry Pi 4 for stability. Other devices may have hardware-optimized encoders, or other software encoders which will also work. The fields `{Device id}`, `{IP Address}`, `{Port}` and `{Bitrate}' should be changed for your use case. Typical bitrates are 500-1500 kbps, and can also be changed for your use case. Generally, you can use a low bitrate (500-1000 Kbps) with excellent results because of the small 320x256 frame size.
@@ -337,10 +347,8 @@ sudo systemctl start echothermd
 ```
 sudo systemctl status echothermd
 ```
-
-# Video output:
+## Save video output:
 ```
-v1.1.0 
 The echotherm interface can be used to start and stop video recording
 echotherm --startRecording [arg]
 
@@ -355,10 +363,10 @@ or
 echothermd --kill
 
  *Warning: repeated use of this function will create multiple files, it is up to the user to clean them up!
-
-# Screenshot:
 ```
-v1.1.0 
+## Save screen shot:
+```
+
 The echotherm interface can be used to capture a frame of the stream to a file
 echotherm --takeScreenSnapshot [arg]
 
@@ -368,11 +376,9 @@ note: jpeg is the default but other formats should be supported
 if no file name is given, the system will automatically create a Frame_UTC.jpeg is the current HOME directory
 
  *Warning: repeated use of this function will create multiple files, it is up to the user to clean them up!
-
-
-# Radiometric output:
 ```
-v1.1.0    
+## Save radiometric output:
+```
 Option to save Radiometric temperture data to a file
 (available once echothermd has started)
 
@@ -409,7 +415,8 @@ Data format:
     Cols - vertical data 
     Data representing the temperature of each pixel in deg C
     Given row by row of columns
-
+```
 ## TO DO
+```
 
 
