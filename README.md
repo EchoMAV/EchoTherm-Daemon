@@ -131,7 +131,7 @@ The full list of available startup options: (v1.1.0)
   --kill                          Kill the existing instance
   --maxZoom arg                   Set the maximum zoom (a floating point
                                   number)
-  --loopbackDeviceName arg        Choose the initial loopback device name
+  --loopbackDeviceName arg        Choose the initial loopback device name (eg: /dev/video0)
   --colorPalette arg              Choose the initial color palette
                                   COLOR_PALETTE_WHITE_HOT =  0
                                   COLOR_PALETTE_BLACK_HOT =  1
