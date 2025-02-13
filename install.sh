@@ -5,6 +5,21 @@ if [[ $(id -u) != 0 ]]; then
   exit 1
 fi
 
+package_available() { #determine if the specified package-name exists in a local repository for the current dpkg architecture
+  local package="$(awk -F: '{print $1}' <<<"$1")"
+  local dpkg_arch="$(awk -F: '{print $2}' <<<"$2")"
+  [ -z "$dpkg_arch" ] && dpkg_arch="$(dpkg --print-architecture)"
+  [ -z "$package" ] && error "package_available(): no package name specified!"
+  local output="$(apt-cache policy "$package":"$dpkg_arch" | grep "Candidate:")"
+  if [ -z "$output" ]; then
+    return 1
+  elif echo "$output" | grep -q "Candidate: (none)"; then
+    return 1
+  else
+    return 0
+  fi
+}
+
 # exit on any error
 set -e
 
@@ -49,6 +64,10 @@ apt install -y \
     gstreamer1.0-qt5 \
     gstreamer1.0-pulseaudio \
     libopencv-dev
+
+# Nvidia Jetpack packages newer opencv differently than Ubuntu and has a bug where libopencv-dev is missing a required dependency (a new package that does not exist in Ubuntu called libopencv). Make sure to install this package if it exists.
+package_available && apt install -y libopencv
+
 echo "Review logs to verify complete installation"
 # download the v4l2loopback stuff and place it into /usr/src
 version=0.12.5
