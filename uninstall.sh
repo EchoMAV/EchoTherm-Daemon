@@ -1,4 +1,10 @@
 #! /bin/bash
+
+if [[ $(id -u) != 0 ]]; then
+  echo "The EchoTherm uninstallation script must be run as root"
+  exit 1
+fi
+
 /usr/local/bin/echothermd --kill
 rm /usr/local/bin/echothermd
 rm /usr/local/bin/echotherm

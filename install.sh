@@ -1,4 +1,10 @@
 #! /bin/bash
+
+if [[ $(id -u) != 0 ]]; then
+  echo "The EchoTherm installation script must be run as root"
+  exit 1
+fi
+
 echo "Installing EchoTherm Software Package..."
 echo ""
 echo "Software compontents include:"
