@@ -48,17 +48,10 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = ~/EchoTherm-Daemon
+CMAKE_SOURCE_DIR = /home/cscott/EchoTherm-Daemon
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = ~/EchoTherm-Daemon
-
-CURRENT_DIR := $(notdir $(shell pwd))
-ifeq ($(CURRENT_DIR),EchoTherm-Daemon)
-    $(info Building in correct directory: $(CURRENT_DIR))
-else
-    $(error Error: Must run make from EchoTherm-Daemon directory. Current directory: $(CURRENT_DIR))
-endif
+CMAKE_BINARY_DIR = /home/cscott/EchoTherm-Daemon
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -100,6 +93,20 @@ edit_cache/fast: edit_cache
 
 # Special rule for the target install
 install: preinstall
+	@if pgrep -x echothermd > /dev/null; then \
+		echo "================================================================="; \
+		echo "echothermd is running!"; \
+		echo "WARNING: make sure daemon application is closed before installing"; \
+		echo "run echothermd --kill" ;\
+		echo "verify echotherm --status";\
+		echo "================================================================="; \
+		exit 1; \
+	fi
+	@if [ "`id -u`" -ne 0 ]; then \
+		echo "================================================================="; \
+		echo "WARNING: It is recommended to run this command with sudo (e.g., sudo make install)"; \
+		echo "================================================================="; \
+	fi
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Install the project..."
 	/usr/bin/cmake -P cmake_install.cmake
 .PHONY : install
@@ -133,9 +140,9 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start ~/EchoTherm-Daemon/CMakeFiles ~/EchoTherm-Daemon/CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/cscott/EchoTherm-Daemon/CMakeFiles /home/cscott/EchoTherm-Daemon/CMakeFiles/progress.marks
 	$(MAKE) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start ~/EchoTherm-Daemon/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/cscott/EchoTherm-Daemon/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
