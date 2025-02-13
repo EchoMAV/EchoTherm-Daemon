@@ -5,11 +5,14 @@ if [[ $(id -u) != 0 ]]; then
   exit 1
 fi
 
-/usr/local/bin/echothermd --kill
-rm /usr/local/bin/echothermd
-rm /usr/local/bin/echotherm
-#rm /etc/udev/rules.d/10-seekthermal.rules
+# exit on any error
+set -e
+
+/usr/local/bin/echothermd --kill || true
+rm -f /usr/local/bin/echothermd
+rm -f /usr/local/bin/echotherm
+#rm -f /etc/udev/rules.d/10-seekthermal.rules
 rm -rf /usr/local/include/seekframe
 rm -rf /usr/local/include/seekcamera
-rm /usr/local/lib/libseekcamera.so.4.4
-rm /usr/local/lib/libseekcamera.so
+rm -f /usr/local/lib/libseekcamera.so.4.4
+rm -f /usr/local/lib/libseekcamera.so

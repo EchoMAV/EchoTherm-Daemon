@@ -5,6 +5,9 @@ if [[ $(id -u) != 0 ]]; then
   exit 1
 fi
 
+# exit on any error
+set -e
+
 echo "Installing EchoTherm Software Package..."
 echo ""
 echo "Software compontents include:"
