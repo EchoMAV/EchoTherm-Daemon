@@ -69,9 +69,6 @@ apt install -y \
 package_available && apt install -y libopencv
 
 echo "Review logs to verify complete installation"
-# download the v4l2loopback stuff and place it into /usr/src
-version=0.12.5
-curl -L https://github.com/umlaeute/v4l2loopback/archive/v${version}.tar.gz | tar xvz -C /usr/src
 # copy thermal libs and include files
 if [[ $arch == x86_64* ]]; then
     cp lib/x86_64-linux-gnu/* /usr/local/lib
@@ -85,18 +82,11 @@ cp driver/udev/10-seekthermal.rules /etc/udev/rules.d
 ldconfig
 # reload your device rules
 udevadm control --reload 
-# clean up the build directory if it exists
-rm -rf build
-mkdir build
-cd build
-# build the application and install it
-cmake -B . -S ..
-make
-make install
-# build and install the v4l2loopback module
-dkms add -m v4l2loopback -v ${version} --force 2>/dev/null
-dkms build -m v4l2loopback -v ${version} --force 2>/dev/null
-dkms install -m v4l2loopback -v ${version} --force 2>/dev/null
+# cleanup old dkms v4l2loopback module
+dkms uninstall -m v4l2loopback -v 0.12.5 || true
+dkms remove -m v4l2loopback -v 0.12.5 || true
+# install apt v4l2loopback-dkms package
+apt install -y v4l2loopback-dkms
 # ensure the module loads on startup
 echo "v4l2loopback" > /etc/modules-load.d/v4l2loopback.conf
 # clean up the v4l2loopback source
