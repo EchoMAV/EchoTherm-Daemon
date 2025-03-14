@@ -793,7 +793,7 @@ std::string EchoThermCamera::startRecording(std::filesystem::path const &filePat
                 try
                 {
                     mp_videoWriter = std::make_unique<cv::VideoWriter>(m_videoFilePath.string(), fourcc, fps, cv::Size(m_width, m_height), m_frameFormat != SEEKCAMERA_FRAME_FORMAT_GRAYSCALE);
-                    if ( mp_videoWriter->isOpened())
+                    if ( mp_videoWriter->isOpened() || m_videoFilePath=="/dev/null" )
                     {
                         status += "Video file " + m_videoFilePath.string() + " opened for writing";
                     }
@@ -944,7 +944,7 @@ std::string EchoThermCamera::stopRecording()
     syslog(LOG_DEBUG, "ENTER EchoThermCamera::stopRecording()");
 #endif
     std::string status;
-    if (mp_videoWriter && mp_videoWriter->isOpened())
+    if (mp_videoWriter && (mp_videoWriter->isOpened() || m_videoFilePath=="/dev/null"))
     {
         std::lock_guard<std::mutex> recordingLock(m_recordingFrameQueueMut);
         try
