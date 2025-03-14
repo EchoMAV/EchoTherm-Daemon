@@ -778,43 +778,45 @@ std::string EchoThermCamera::startRecording(std::filesystem::path const &filePat
             status = "Previous recording session stopped unexpectedly: " + m_recordingStatus + "; ";
             m_recordingStatus.clear();
         }
-        auto extension = filePath.extension().string();
-        std::transform(std::begin(extension), std::end(extension), std::begin(extension), [](auto const c)
-                       { return (char)std::tolower(c); });
-        if (extension == ".mp4")
         {
-            std::unique_lock<std::mutex> recordingLock(m_recordingFrameQueueMut);
-            m_recordingFrameQueue.clear();
-            m_videoFilePath = filePath;
-            auto const fourcc = cv::VideoWriter::fourcc('m', 'p', '4', 'v');
+            auto extension = filePath.extension().string();
+            std::transform(std::begin(extension), std::end(extension), std::begin(extension), [](auto const c)
+                        { return (char)std::tolower(c); });
+            if (extension == ".mp4" || filePath=="/dev/null")
+            {
+                std::unique_lock<std::mutex> recordingLock(m_recordingFrameQueueMut);
+                m_recordingFrameQueue.clear();
+                m_videoFilePath = filePath;
+                auto const fourcc = cv::VideoWriter::fourcc('m', 'p', '4', 'v');
 
-            double fps = n_frameRate; // 27 fps assumed
-            try
-            {
-                mp_videoWriter = std::make_unique<cv::VideoWriter>(m_videoFilePath.string(), fourcc, fps, cv::Size(m_width, m_height), m_frameFormat != SEEKCAMERA_FRAME_FORMAT_GRAYSCALE);
-                if ( mp_videoWriter->isOpened())
+                double fps = n_frameRate; // 27 fps assumed
+                try
                 {
-                    status += "Video file " + m_videoFilePath.string() + " opened for writing";
+                    mp_videoWriter = std::make_unique<cv::VideoWriter>(m_videoFilePath.string(), fourcc, fps, cv::Size(m_width, m_height), m_frameFormat != SEEKCAMERA_FRAME_FORMAT_GRAYSCALE);
+                    if ( mp_videoWriter->isOpened())
+                    {
+                        status += "Video file " + m_videoFilePath.string() + " opened for writing";
+                    }
+                    else
+                    {
+                        status += "Failed to open video file " + m_videoFilePath.string() + " for writing";
+                        syslog( LOG_INFO, "%s" ,status.c_str() );
+                        syslog( LOG_INFO, "File: %s" ,std::filesystem::absolute(m_videoFilePath).c_str() );
+                        syslog( LOG_INFO, "OpenCV version: %s" , CV_VERSION);
+                    }
                 }
-                else
+                catch (cv::Exception const &e)
                 {
-                    status += "Failed to open video file " + m_videoFilePath.string() + " for writing";
-                    syslog( LOG_INFO, "%s" ,status.c_str() );
-                    syslog( LOG_INFO, "File: %s" ,std::filesystem::absolute(m_videoFilePath).c_str() );
-                    syslog( LOG_INFO, "OpenCV version: %s" , CV_VERSION);
+                    status += "Failed to open file " + m_videoFilePath.string() + " opened for writing : " + e.msg + "\n" + e.what();
                 }
+                recordingLock.unlock();
+                m_recordingFramesReadyCondition.notify_one();
             }
-            catch (cv::Exception const &e)
+            else
             {
-                status += "Failed to open file " + m_videoFilePath.string() + " opened for writing : " + e.msg + "\n" + e.what();
+                status += "Video file extension must be '.mp4'";
             }
-            recordingLock.unlock();
-            m_recordingFramesReadyCondition.notify_one();
-        }
-        else
-        {
-            status += "Video file extension must be '.mp4'";
-        }
+        } 
     }
 #ifdef DEBUG
     syslog(LOG_DEBUG, "EXIT  EchoThermCamera::startRecording(%s) with %s", filePath.string().c_str(), status.c_str());
