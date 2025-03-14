@@ -82,6 +82,14 @@ cp driver/udev/10-seekthermal.rules /etc/udev/rules.d
 ldconfig
 # reload your device rules
 udevadm control --reload 
+# clean up the build directory if it exists
+rm -rf build
+mkdir build
+cd build
+# build the application and install it
+cmake -B . -S ..
+make
+make install
 # cleanup old dkms v4l2loopback module
 dkms uninstall -m v4l2loopback -v 0.12.5 || true
 dkms remove -m v4l2loopback -v 0.12.5 || true
