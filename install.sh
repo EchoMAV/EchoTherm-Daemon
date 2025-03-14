@@ -41,7 +41,7 @@ else
 fi
 # install all the stuff you'll need (dkms, cmake, boost, gstreamer)
 echo "Installing support files, please verify complete installation and no errors"
-apt update
+apt-get -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=false update
 apt install -y \
     v4l-utils \
     curl \
