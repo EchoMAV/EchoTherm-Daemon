@@ -153,18 +153,18 @@ The full list of available startup options: (v1.1.0)
                                   positive = number of seconds between shutter
                                   events
   --frameFormat arg               Choose the initial frame format
-                                  FRAME_FORMAT_CORRECTED               = 0x04
+                                  FRAME_FORMAT_CORRECTED               = 4
                                   (not yet implemented)
-                                  FRAME_FORMAT_PRE_AGC                 = 0x08
+                                  FRAME_FORMAT_PRE_AGC                 = 8
                                   (not yet implemented)
-                                  FRAME_FORMAT_GRAYSCALE               = 0x40
-                                  FRAME_FORMAT_COLOR_ARGB8888          = 0x80
+                                  FRAME_FORMAT_GRAYSCALE               = 64
+                                  FRAME_FORMAT_COLOR_ARGB8888          = 128
                                   (default)
-                                  FRAME_FORMAT_COLOR_RGB565            = 0x100
+                                  FRAME_FORMAT_COLOR_RGB565            = 256
                                   (not yet implemented)
-                                  FRAME_FORMAT_COLOR_AYUV              = 0x200
+                                  FRAME_FORMAT_COLOR_AYUV              = 512
                                   (not yet implemented)
-                                  FRAME_FORMAT_COLOR_YUY2              = 0x400
+                                  FRAME_FORMAT_COLOR_YUY2              = 1024
                                   (not yet implemented)
   --setRadiometricFrameFormat arg Choose the initial radiometric frame format
                                   FRAME_FORMAT_THERMOGRAPHY_FLOAT      = 0x10

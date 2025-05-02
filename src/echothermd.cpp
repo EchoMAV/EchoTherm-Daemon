@@ -1120,15 +1120,15 @@ int main(int argc, char *argv[])
                            "positive = number of seconds between shutter events");
         desc.add_options()("frameFormat", boost::program_options::value<std::string>(),
                            "Choose the initial frame format\n"
-                           "FRAME_FORMAT_CORRECTED               = 0x04  (not yet implemented)\n"
-                           "FRAME_FORMAT_PRE_AGC                 = 0x08  (not yet implemented)\n"
+                           "FRAME_FORMAT_CORRECTED               = 4  (not yet implemented)\n"
+                           "FRAME_FORMAT_PRE_AGC                 = 8  (not yet implemented)\n"
                            //"FRAME_FORMAT_THERMOGRAPHY_FLOAT      = 0x10\n" these set in seperate option
                            //"FRAME_FORMAT_THERMOGRAPHY_FIXED_10_6 = 0x20\n"
-                           "FRAME_FORMAT_GRAYSCALE               = 0x40\n"
-                           "FRAME_FORMAT_COLOR_ARGB8888          = 0x80  (default)\n"
-                           "FRAME_FORMAT_COLOR_RGB565            = 0x100 (not yet implemented)\n"
-                           "FRAME_FORMAT_COLOR_AYUV              = 0x200 (not yet implemented)\n"
-                           "FRAME_FORMAT_COLOR_YUY2              = 0x400 (not yet implemented)");
+                           "FRAME_FORMAT_GRAYSCALE               = 64\n"
+                           "FRAME_FORMAT_COLOR_ARGB8888          = 128  (default)\n"
+                           "FRAME_FORMAT_COLOR_RGB565            = 256 (not yet implemented)\n"
+                           "FRAME_FORMAT_COLOR_AYUV              = 512 (not yet implemented)\n"
+                           "FRAME_FORMAT_COLOR_YUY2              = 1024 (not yet implemented)");
         desc.add_options()("setRadiometricFrameFormat", boost::program_options::value<std::string>(),
                            "Choose the initial radiometric frame format\n"
                            "FRAME_FORMAT_THERMOGRAPHY_FLOAT      = 0x10\n"

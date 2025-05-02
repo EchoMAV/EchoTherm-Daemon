@@ -1240,7 +1240,8 @@ void EchoThermCamera::_openDevice(int width, int height)
             switch (m_frameFormat)
             {
             case SEEKCAMERA_FRAME_FORMAT_COLOR_ARGB8888:
-                v.fmt.pix.pixelformat = V4L2_PIX_FMT_ARGB32;
+                //b0g1r2a3
+                v.fmt.pix.pixelformat = V4L2_PIX_FMT_ABGR32;
                 v.fmt.pix.sizeimage = width * height * 4;
                 break;
             case SEEKCAMERA_FRAME_FORMAT_GRAYSCALE:
