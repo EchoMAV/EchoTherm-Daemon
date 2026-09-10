@@ -66,7 +66,7 @@ apt install -y \
     libopencv-dev
 
 # Nvidia Jetpack packages newer opencv differently than Ubuntu and has a bug where libopencv-dev is missing a required dependency (a new package that does not exist in Ubuntu called libopencv). Make sure to install this package if it exists.
-package_available && apt install -y libopencv
+package_available libopencv && apt install -y libopencv
 
 echo "Review logs to verify complete installation"
 # copy thermal libs and include files
